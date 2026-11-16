@@ -6,7 +6,7 @@ export default function Bubble({
   className = "",
   style,
 }: {
-  tone?: "red" | "green" | "brown" | "sand";
+  tone?: "red" | "green" | "brown" | "sand" | "blue" | "yellow" | "purple";
   children: ReactNode;
   className?: string;
   style?: CSSProperties;

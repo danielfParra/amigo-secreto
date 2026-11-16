@@ -1,44 +1,40 @@
-"use client";
-
-import { useState } from "react";
-import Regalito from "@/components/Regalito";
-import Bubble from "@/components/Bubble";
 import Button from "@/components/Button";
 import Clouds from "@/components/Clouds";
+import Pack from "@/components/Pack";
+import { Bell, Candy, Gift, Tree } from "@/components/Icons";
+
+const STICKERS = [
+  { n: "07", who: "Tú", tone: "tone-yellow", style: { left: 0, top: 6, "--tilt": "-7deg", "--i": 2 } },
+  { n: "12", who: "¿Quién?", tone: "tone-red", style: { right: 0, top: 84, "--tilt": "6deg", "--i": 4 } },
+  { n: "03", who: "Shh…", tone: "tone-green", style: { left: 10, top: 214, "--tilt": "4deg", "--i": 6 } },
+] as const;
 
 export default function Inicio() {
-  const [run, setRun] = useState(0);
   return (
-    <main className="screen" style={{ alignItems: "center", paddingTop: "calc(52px + env(safe-area-inset-top))" }}>
+    <main className="screen screen-hero" style={{ alignItems: "center", paddingTop: "calc(44px + env(safe-area-inset-top))" }}>
       <Clouds variant="inicio" />
-      <h1 className="anim-fadeup" style={{ textAlign: "center", fontSize: 40 }}>
-        ¿Quién te tocará este año?
+      <h1 className="hero-title anim-fadeup">
+        ¿Quién te <em>tocará</em> este año?
       </h1>
 
-      <div
-        key={run}
-        style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
-      >
-        <Bubble className="anim-pop" style={{ position: "absolute", left: 0, top: 70, animationDelay: "0.7s" }}>
-          ¡Hola! Soy Regalito
-        </Bubble>
-        <Bubble
-          tone="green"
-          className="anim-pop"
-          style={{ position: "absolute", right: 0, bottom: 40, maxWidth: 190, animationDelay: "1.4s" }}
-        >
-          Te ayudo con el amigo secreto de este año
-        </Bubble>
-        <Regalito />
-      </div>
+      <div className="collage" aria-hidden="true"><div className="collage-inner">
+        <Pack style={{ left: "50%", top: 20, marginLeft: -84, zIndex: 2 }} />
+        <Tree size={64} className="collage-icon bob" style={{ left: 2, top: 120, "--r": "-6deg" } as React.CSSProperties} />
+        <Bell size={48} className="collage-icon" style={{ right: 14, top: 8 }} />
+        <Gift size={52} className="collage-icon bob" style={{ right: 4, top: 230, "--r": "5deg" } as React.CSSProperties} />
+        <Candy size={44} className="collage-icon bob" style={{ left: "50%", top: 262, marginLeft: -22, "--r": "-10deg" } as React.CSSProperties} />
+        {STICKERS.map((s) => (
+          <div key={s.n} className={`sticker ${s.tone}`} style={{ ...s.style, width: 132 } as React.CSSProperties}>
+            <span className="num">N.º {s.n}</span>
+            <span className="who">{s.who}</span>
+          </div>
+        ))}
+      </div></div>
 
-      <div key={`cta-${run}`} className="stack anim-fadeup" style={{ width: "100%", alignItems: "center", gap: 6, animationDelay: "1.8s" }}>
+      <div className="stack anim-fadeup" style={{ width: "100%", alignItems: "center", gap: 6, animationDelay: "0.5s" }}>
         <Button href="/unirse">Empezar</Button>
         <Button variant="link" href="/entrar">
           Ya tengo cuenta
-        </Button>
-        <Button variant="link" onClick={() => setRun((r) => r + 1)}>
-          Ver otra vez
         </Button>
       </div>
     </main>

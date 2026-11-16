@@ -5,7 +5,7 @@ import Link from "next/link";
 import Bubble from "@/components/Bubble";
 import Clouds from "@/components/Clouds";
 import Field from "@/components/Field";
-import Regalito from "@/components/Regalito";
+import Pack from "@/components/Pack";
 import { apiFetch } from "@/lib/client/api";
 import { unlockPrivateKey } from "@/lib/client/session";
 import { useMe, type Me } from "@/lib/client/useMe";
@@ -74,9 +74,7 @@ function Reveal({ me }: { me: Me }) {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="anim-pop stack" style={{ gap: 6 }}>
           <span style={{ fontSize: 18, fontWeight: 600, color: "var(--muted)" }}>Le regalas a</span>
-          <span className="tone-red" style={{ alignSelf: "flex-start", borderRadius: 22, padding: "4px 16px 8px", fontWeight: 800, fontSize: 48, letterSpacing: -1, lineHeight: 1.1, overflowWrap: "anywhere" }}>
-            {result.receiverName}
-          </span>
+          <span className="reveal">{result.receiverName}</span>
         </div>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 8 }}>Sus tres deseos</h2>
         <ul className="stack" style={{ gap: 10, listStyle: "none" }}>
@@ -108,8 +106,8 @@ function Reveal({ me }: { me: Me }) {
     <form onSubmit={reveal} noValidate style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20, alignItems: "center" }}>
       <h1 style={{ textAlign: "center" }}>¿Listo para saber a quién le regalas?</h1>
       <div style={{ flex: 1, width: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 220 }}>
-        <Bubble style={{ position: "absolute", right: 0, top: 10, maxWidth: 200 }}>Mira que nadie esté viendo tu pantalla</Bubble>
-        <Regalito />
+        <Bubble tone="yellow" style={{ position: "absolute", right: 0, top: 10, maxWidth: 200, zIndex: 2 }}>Mira que nadie esté viendo tu pantalla</Bubble>
+        <Pack />
       </div>
       {asking && (
         <div style={{ width: "100%" }} className="stack">

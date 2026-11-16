@@ -1,5 +1,6 @@
 "use client";
 
+import Clouds from "@/components/Clouds";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -142,7 +143,7 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
         )}
       </div>
 
-      <ul className="card" style={{ padding: "6px 16px" }} aria-label="Personas del grupo">
+      <ul className="album" aria-label="Personas del grupo">
         {status?.members.map((m, i) => (
           <MemberRow key={m.id} name={m.name} claimed={m.claimed} ready={m.ready} resetPending={m.resetPending} index={i} isSelf={m.id === me.user.id}
             canManage={isOrganizer && m.id !== me.user.id} busy={busy}
@@ -223,6 +224,7 @@ export default function Grupo() {
   const { me, error, reload } = useMe();
   return (
     <main className="screen" style={{ gap: 20 }}>
+      <Clouds />
       {me ? <GrupoView me={me} reloadMe={reload} /> : error ? <span role="alert" className="error">{error}</span> : <p className="lede">Cargando…</p>}
     </main>
   );

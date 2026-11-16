@@ -1,5 +1,6 @@
 "use client";
 
+import Clouds from "@/components/Clouds";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -92,6 +93,7 @@ export default function Lista() {
   const { me, error } = useMe();
   return (
     <main className="screen" style={{ gap: 18 }}>
+      <Clouds />
       <Link href="/grupo" className="back" aria-label="Volver al grupo">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M15 18l-6-6 6-6" />

@@ -7,7 +7,7 @@ import {
   wrapPrivateKey,
   unwrapPrivateKey,
 } from "./keys";
-import { sealPayload, openPayload, PAD_SIZE, PayloadTooLargeError } from "./hybrid";
+import { sealPayload, openPayload, payloadFits, PAD_SIZE, PayloadTooLargeError } from "./hybrid";
 import { toB64, fromB64 } from "./encoding";
 
 const IT = 1000;
@@ -37,6 +37,39 @@ describe("kdf", () => {
   test("wrapKey is not extractable", async () => {
     const { wrapKey } = await deriveSecrets("1234", newSalt(), IT);
     expect(wrapKey.extractable).toBe(false);
+  });
+
+  test("rejects a pin shorter than 4 characters", async () => {
+    await expect(deriveSecrets("123", newSalt(), IT)).rejects.toThrow(/4/);
+  });
+});
+
+describe("importPublicKey validation", () => {
+  test("accepts a freshly exported public key", async () => {
+    const kp = await generateKeyPair();
+    await expect(importPublicKey(await exportPublicKey(kp.publicKey))).resolves.toBeDefined();
+  });
+
+  test("rejects a JWK that carries private components", async () => {
+    const kp = await generateKeyPair();
+    const priv = JSON.stringify(await crypto.subtle.exportKey("jwk", kp.privateKey));
+    await expect(importPublicKey(priv)).rejects.toThrow(/clave p/i);
+  });
+
+  test("rejects a non-RSA key", async () => {
+    const ec = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+    const jwk = JSON.stringify(await crypto.subtle.exportKey("jwk", ec.publicKey));
+    await expect(importPublicKey(jwk)).rejects.toThrow(/clave p/i);
+  });
+
+  test("rejects an RSA key smaller than 2048 bits", async () => {
+    const small = await crypto.subtle.generateKey(
+      { name: "RSA-OAEP", modulusLength: 1024, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+      true,
+      ["encrypt", "decrypt"],
+    );
+    const jwk = JSON.stringify(await crypto.subtle.exportKey("jwk", small.publicKey));
+    await expect(importPublicKey(jwk)).rejects.toThrow(/clave p/i);
   });
 });
 
@@ -92,6 +125,16 @@ describe("hybrid", () => {
     await expect(
       sealPayload({ a: "x".repeat(PAD_SIZE) }, kp.publicKey),
     ).rejects.toBeInstanceOf(PayloadTooLargeError);
+  });
+
+  test("payloadFits agrees with sealPayload and counts UTF-8 bytes, not characters", async () => {
+    const kp = await generateKeyPair();
+    const ascii = { a: "x".repeat(3000) };
+    const emoji = { a: "🎁".repeat(1100) }; // 1100 chars but 4400 bytes
+    expect(payloadFits(ascii)).toBe(true);
+    expect(payloadFits(emoji)).toBe(false);
+    await expect(sealPayload(ascii, kp.publicKey)).resolves.toBeDefined();
+    await expect(sealPayload(emoji, kp.publicKey)).rejects.toBeInstanceOf(PayloadTooLargeError);
   });
 
   test("a payload exactly at the limit seals", async () => {

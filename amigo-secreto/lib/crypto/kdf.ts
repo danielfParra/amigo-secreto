@@ -1,6 +1,7 @@
 import { fromB64, toB64 } from "./encoding";
 
 export const DEFAULT_ITERATIONS = 600_000;
+export const MIN_PIN_LENGTH = 4;
 
 export function newSalt(): string {
   return toB64(crypto.getRandomValues(new Uint8Array(16)));
@@ -18,6 +19,7 @@ export async function deriveSecrets(
   saltB64: string,
   iterations: number = DEFAULT_ITERATIONS,
 ): Promise<{ authSecret: string; wrapKey: CryptoKey }> {
+  if (pin.length < MIN_PIN_LENGTH) throw new Error(`El PIN debe tener al menos ${MIN_PIN_LENGTH} caracteres`);
   const base = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
   const master = await crypto.subtle.deriveBits(
     { name: "PBKDF2", hash: "SHA-256", salt: fromB64(saltB64), iterations },

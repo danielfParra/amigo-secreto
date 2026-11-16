@@ -16,5 +16,6 @@ export default defineConfig(({ mode }) => ({
     include: ["**/*.test.ts", "**/*.test.tsx"],
     exclude: ["node_modules/**", ".next/**"],
     fileParallelism: false,
+    testTimeout: 30_000, // DB tests make many sequential round trips to a remote Neon database
   },
 }));

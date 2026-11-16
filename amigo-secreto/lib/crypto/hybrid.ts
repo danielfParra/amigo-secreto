@@ -12,6 +12,11 @@ export class PayloadTooLargeError extends Error {
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
+/** True if the payload (as UTF-8 JSON) fits in one padded block. Same rule `sealPayload` enforces. */
+export function payloadFits(payload: object): boolean {
+  return enc.encode(JSON.stringify(payload)).length <= PAD_SIZE - 4;
+}
+
 /** 4-byte big-endian length + JSON bytes + zero fill, always exactly PAD_SIZE bytes. */
 function pad(payload: object): Uint8Array<ArrayBuffer> {
   const json = enc.encode(JSON.stringify(payload));

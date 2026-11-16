@@ -11,8 +11,21 @@ export async function exportPublicKey(k: CryptoKey): Promise<string> {
   return JSON.stringify(await crypto.subtle.exportKey("jwk", k));
 }
 
+const PRIVATE_JWK_FIELDS = ["d", "p", "q", "dp", "dq", "qi", "oth"];
+
+/** Imports a public key, refusing anything that is not a genuine RSA-OAEP-256 key of at least 2048 bits. */
 export function importPublicKey(s: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey("jwk", JSON.parse(s), { name: "RSA-OAEP", hash: "SHA-256" }, true, ["encrypt"]);
+  const jwk = JSON.parse(s) as JsonWebKey;
+  const modulusBytes = typeof jwk.n === "string" ? fromB64(jwk.n.replace(/-/g, "+").replace(/_/g, "/")).length : 0;
+  if (
+    jwk.kty !== "RSA" ||
+    jwk.alg !== "RSA-OAEP-256" ||
+    modulusBytes < 256 ||
+    PRIVATE_JWK_FIELDS.some((f) => f in jwk)
+  ) {
+    return Promise.reject(new Error("Clave pública inválida"));
+  }
+  return crypto.subtle.importKey("jwk", jwk, { name: "RSA-OAEP", hash: "SHA-256" }, true, ["encrypt"]);
 }
 
 export async function wrapPrivateKey(

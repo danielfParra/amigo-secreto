@@ -7,7 +7,9 @@ import { handle, json } from "@/lib/server/http";
 export async function GET(req: NextRequest) {
   return handle(async () => {
     const email = (req.nextUrl.searchParams.get("email") ?? "").trim().toLowerCase();
-    const rows = email ? await sql`SELECT salt FROM users WHERE email = ${email}` : [];
-    return json({ salt: rows.length ? (rows[0].salt as string) : fakeSalt(email) });
+    const rows = email
+      ? await sql`SELECT salt, (pin_reset_until IS NOT NULL AND pin_reset_until > now()) AS reset FROM users WHERE email = ${email}`
+      : [];
+    return json({ salt: rows.length ? (rows[0].salt as string) : fakeSalt(email), reset: rows.length ? rows[0].reset === true : false });
   });
 }

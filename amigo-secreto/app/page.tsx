@@ -23,7 +23,7 @@ export default function Inicio() {
           ¡Hola! Soy Regalito
         </Bubble>
         <Bubble
-          tone="blue"
+          tone="green"
           className="anim-pop"
           style={{ position: "absolute", right: 0, bottom: 40, maxWidth: 190, animationDelay: "1.4s" }}
         >

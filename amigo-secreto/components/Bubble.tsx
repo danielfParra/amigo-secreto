@@ -1,12 +1,12 @@
 import type { CSSProperties, ReactNode } from "react";
 
 export default function Bubble({
-  tone = "yellow",
+  tone = "brown",
   children,
   className = "",
   style,
 }: {
-  tone?: "yellow" | "blue" | "pink" | "green";
+  tone?: "red" | "green" | "brown" | "sand";
   children: ReactNode;
   className?: string;
   style?: CSSProperties;

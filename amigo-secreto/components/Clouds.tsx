@@ -19,7 +19,7 @@ export default function Clouds({ variant = "soft" }: { variant?: "inicio" | "sof
       viewBox="0 0 390 844"
       preserveAspectRatio="xMidYMin slice"
       fill="none"
-      stroke="#E2DDC8"
+      stroke="#B9B3A5"
       strokeWidth="1.5"
     >
       {PATHS[variant].map((d) => (

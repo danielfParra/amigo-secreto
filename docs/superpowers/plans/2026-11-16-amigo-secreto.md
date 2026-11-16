@@ -21,7 +21,7 @@
 - Draw unlocks only when joined members == expected size and all lists complete. Self-pairing impossible. Draw is organizer-only; organizer may reset it.
 - Server never receives the PIN, any plaintext pairing, or a request revealing who looked up whose wishes.
 - Session: random token in `sessions` table, httpOnly + Secure + SameSite=Lax cookie, 30 days.
-- Palette/typography from the sketch: Figtree; bg `#F5F3E8`, ink `#1F1F1F`, muted `#5C5A52`, line `#E2DDC8`, yellow `#FFE08A`, blue `#BFE4FF`, pink `#F6C6EA`, green `#CDEBC0`, error `#B3261E`; 44px minimum touch targets; respect `prefers-reduced-motion`.
+- Typography from the sketch: Figtree. Palette supplied by the user (supersedes the sketch colors): red `#A60B08`, deep red `#5E0001`, deep green `#1D2E19` (ink), sand `#CFCABF` (page background), brown `#76584C` (only behind white text; small text uses darker `#5A4238`), plus derived card `#EFECE5` and line `#B9B3A5`; 44px minimum touch targets; respect `prefers-reduced-motion`.
 - No emails are sent; email is only a login identifier (unique per group).
 
 ## Review Focus

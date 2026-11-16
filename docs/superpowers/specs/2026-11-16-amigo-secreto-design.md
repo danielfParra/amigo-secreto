@@ -6,7 +6,7 @@ Date: 2026-11-16 · Status: awaiting approval
 A Spanish-language installable web app (PWA, iOS + Android via "Add to Home Screen") for one family's Christmas secret Santa (~12 people). Each person joins, lists three wishes (max $60.000 COP each), the organizer runs the draw, and each person privately sees who they give to. Nobody — server, database holder, or organizer — can read the pairings. Sketch: claude.ai/artifact/PhbL7ASMctRbBeqCKpJPz5 (6 screens: Inicio, Unirse, Lista, Grupo, Sorteo, Privacidad).
 
 ## Goals
-- Installable, mobile-first, matches the sketch (Figtree, cream/yellow/blue/pink palette, mascot Regalito).
+- Installable, mobile-first, matches the sketch layout (Figtree, mascot Regalito) in the user-supplied Christmas palette: #A60B08 red, #5E0001 deep red, #1D2E19 deep green, #CFCABF sand, #76584C brown (replaces the sketch's cream/yellow/blue/pink).
 - Pairings private by construction (end-to-end encryption), as promised on the Privacidad screen.
 - Accounts protected by a password or 4-digit PIN, usable from any device.
 - Free to run (Vercel Hobby + free-tier Postgres via Vercel Marketplace).
@@ -37,7 +37,8 @@ Hosting: Vercel Hobby + Marketplace Postgres (free) over Railway (already paid, 
 - **Draw gate:** the organizer sets the expected group size (e.g. 12) when creating the group. The draw unlocks only when that many have joined and every list is complete; the Grupo screen shows "6 de 12".
 - **Reveal:** the giver's browser decrypts with their unlocked private key; "Revelar/Ocultar" per the sketch.
 - **Reset draw:** organizer can delete all results (with confirmation) to redo it, e.g. someone joined late.
-- **Forgotten PIN:** key is unrecoverable; organizer can reset that account (new keys), then the draw is redone. Stated openly in the UI.
+- **Forgotten PIN (decided by the user, replaces the earlier "remove and rejoin" idea):** the organizer taps "Restablecer PIN" on a member (or the admin runs `scripts/reset-pin.ts <email>`, which also covers the organizer themselves). The next time that person signs in they are asked to choose a new PIN. The reset stays open for 3 days. Because the old PIN protected their private key and is unrecoverable, they get a new key pair; wishes are kept. If the draw was already done their result cannot be recovered, so the draw is reopened and re-run. Accepted trade-off (family app): anyone who knows the email could claim the account during the open window.
+- **PIN length:** minimum 4 characters (user chose to keep 4 after being told the lockout allows about 480 guesses/day per account).
 - **Honesty note:** the organizer's browser holds the pairings in memory during the draw but never stores or sends them in plaintext.
 - **Tests:** crypto round-trip, derangement property test (no fixed points, everyone covered), auth/rate-limit, and an end-to-end smoke run of join → list → draw → reveal.
 - **Visual polish:** port the sketch faithfully first, then a polish pass with the impeccable and emil-design-eng skills.

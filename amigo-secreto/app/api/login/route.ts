@@ -15,12 +15,19 @@ export async function POST(req: NextRequest) {
     const mail = email(body);
     const secret = text(body, "authSecret", { max: 128, label: "la clave de acceso" });
 
-    const rows = await sql`SELECT id, auth_hash, (locked_until IS NOT NULL AND locked_until > now()) AS locked FROM users WHERE email = ${mail}`;
+    const rows = await sql`
+      SELECT id, auth_hash,
+             (locked_until IS NOT NULL AND locked_until > now()) AS locked,
+             (pin_reset_until IS NOT NULL AND pin_reset_until > now()) AS reset
+      FROM users WHERE email = ${mail}`;
     const u = rows[0];
     if (!u) {
       // Spend the same time as a real check so response time does not reveal which emails exist.
       await verifyAuthSecret(secret, await (dummyHash ??= hashAuthSecret("dummy")));
       throw BAD();
+    }
+    if (u.reset) {
+      throw new HttpError(403, "Tu organizador restableció tu PIN. Elige uno nuevo para entrar.", { resetRequired: true });
     }
     if (u.locked) throw LOCKED();
 

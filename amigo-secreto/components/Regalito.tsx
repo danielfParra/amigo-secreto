@@ -1,13 +1,13 @@
 const TONES = {
-  rosado: ["#F6C6EA", "#EEADDB"],
-  azul: ["#BFE4FF", "#9FD3F7"],
-  verde: ["#CDEBC0", "#B3DFA1"],
-  amarillo: ["#FFE6A3", "#FFD77A"],
+  rojo: ["#A60B08", "#5E0001"],
+  verde: ["#1D2E19", "#5E0001"],
+  cafe: ["#76584C", "#5A4238"],
+  vino: ["#5E0001", "#A60B08"],
 } as const;
 
 export type RegalitoColor = keyof typeof TONES;
 
-export default function Regalito({ color = "rosado" }: { color?: RegalitoColor }) {
+export default function Regalito({ color = "rojo" }: { color?: RegalitoColor }) {
   const [body, lid] = TONES[color];
   return (
     <div className="regalito" role="img" aria-label="Regalito, un regalo con cara sonriente">

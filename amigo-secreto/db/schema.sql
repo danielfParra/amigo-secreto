@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS users (
   wrap_iv text NOT NULL,
   failed_attempts integer NOT NULL DEFAULT 0,
   locked_until timestamptz,
+  pin_reset_until timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_reset_until timestamptz;
 
 CREATE INDEX IF NOT EXISTS users_group_idx ON users(group_id);
 

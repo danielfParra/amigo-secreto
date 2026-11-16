@@ -1,10 +1,7 @@
 import { DEFAULT_ITERATIONS, deriveSecrets, newSalt } from "@/lib/crypto/kdf";
 import { exportPublicKey, generateKeyPair, unwrapPrivateKey, wrapPrivateKey } from "@/lib/crypto/keys";
 
-export type RegisterInput = { pin: string; name: string; email: string };
-
 export type Credentials = {
-  email: string;
   salt: string;
   authSecret: string;
   publicKey: string;
@@ -12,33 +9,19 @@ export type Credentials = {
   wrapIv: string;
 };
 
-export type NewAccount = Credentials & { name: string };
-
-/** A brand-new salt, auth secret and key pair for a PIN. The PIN and the private key never leave the browser. */
-export async function createCredentials(
-  input: { pin: string; email: string },
-  iterations: number = DEFAULT_ITERATIONS,
-): Promise<Credentials> {
+/**
+ * A brand-new salt, auth secret and key pair for a PIN. Used when a person claims their name and when
+ * they choose a new PIN after a reset. The PIN and the private key never leave the browser.
+ */
+export async function createCredentials(pin: string, iterations: number = DEFAULT_ITERATIONS): Promise<Credentials> {
   const salt = newSalt();
-  const { authSecret, wrapKey } = await deriveSecrets(input.pin, salt, iterations);
+  const { authSecret, wrapKey } = await deriveSecrets(pin, salt, iterations);
   const kp = await generateKeyPair();
   const { wrapped, iv } = await wrapPrivateKey(kp.privateKey, wrapKey);
-  return {
-    email: input.email.trim().toLowerCase(),
-    salt,
-    authSecret,
-    publicKey: await exportPublicKey(kp.publicKey),
-    wrappedPrivateKey: wrapped,
-    wrapIv: iv,
-  };
+  return { salt, authSecret, publicKey: await exportPublicKey(kp.publicKey), wrappedPrivateKey: wrapped, wrapIv: iv };
 }
 
-/** Everything the server needs to create an account. */
-export async function registerAccount(input: RegisterInput, iterations: number = DEFAULT_ITERATIONS): Promise<NewAccount> {
-  return { name: input.name.trim(), ...(await createCredentials(input, iterations)) };
-}
-
-/** At login: the auth secret to send to the server (the wrap key stays in the browser). */
+/** At sign-in: the auth secret to send to the server (the wrap key stays in the browser). */
 export function loginSecrets(pin: string, saltB64: string, iterations: number = DEFAULT_ITERATIONS) {
   return deriveSecrets(pin, saltB64, iterations);
 }

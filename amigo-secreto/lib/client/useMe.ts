@@ -7,8 +7,8 @@ import { apiFetch, type ApiResult } from "./api";
 export type Wish = { title: string; price: number; link: string | null };
 
 export type Me = {
-  user: { id: string; name: string; email: string; isOrganizer: boolean };
-  group: { name: string; eventDate: string | null; priceCap: number; expectedSize: number; drawDone: boolean; inviteCode: string };
+  user: { id: string; name: string; isOrganizer: boolean };
+  group: { name: string; eventDate: string | null; priceCap: number; drawDone: boolean; inviteCode: string };
   salt: string;
   wrappedPrivateKey: string;
   wrapIv: string;

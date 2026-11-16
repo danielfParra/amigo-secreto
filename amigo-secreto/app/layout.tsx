@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree } from "next/font/google";
+import { Public_Sans } from "next/font/google";
 import RegisterSW from "@/components/RegisterSW";
 import "./globals.css";
 
-const figtree = Figtree({
-  variable: "--font-figtree",
+const publicSans = Public_Sans({
+  variable: "--font-public-sans",
   subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
 });
@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={figtree.variable}>
+    <html lang="es" className={publicSans.variable}>
       <body>
         {children}
         <RegisterSW />

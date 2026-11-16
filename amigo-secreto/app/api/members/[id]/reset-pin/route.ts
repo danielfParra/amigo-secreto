@@ -12,8 +12,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     if (!UUID.test(id)) throw new HttpError(404, "No encontramos a esa persona");
     if (id.toLowerCase() === s.userId) throw new HttpError(422, "Tu propio PIN se restablece desde el script de administración");
-    const rows = await sql`SELECT 1 FROM users WHERE id = ${id} AND group_id = ${s.groupId}`;
+    const rows = await sql`SELECT (auth_hash IS NOT NULL) AS claimed FROM users WHERE id = ${id} AND group_id = ${s.groupId}`;
     if (!rows.length) throw new HttpError(404, "No encontramos a esa persona");
+    if (!rows[0].claimed) throw new HttpError(409, "Esa persona todavía no se une, así que no tiene PIN que restablecer");
     const { drawReset } = await startPinReset(s.groupId, id);
     return json({ ok: true, drawReset });
   });

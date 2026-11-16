@@ -1,28 +1,31 @@
 import type { NextRequest } from "next/server";
 import { sql } from "@/lib/db";
 import { LOCK_MINUTES, MAX_ATTEMPTS, hashAuthSecret, verifyAuthSecret } from "@/lib/server/auth";
-import { HttpError, email, handle, json, readJson, text } from "@/lib/server/http";
+import { UUID } from "@/lib/server/group";
+import { HttpError, handle, json, readJson, text } from "@/lib/server/http";
 import { attachSession, createSession } from "@/lib/server/session";
 
 const LOCKED = () => new HttpError(423, `Demasiados intentos. Intenta de nuevo en ${LOCK_MINUTES} minutos.`);
-const BAD = () => new HttpError(401, "Correo o PIN incorrectos");
+const BAD = () => new HttpError(401, "Nombre o PIN incorrectos");
 
 let dummyHash: Promise<string> | null = null;
 
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const body = await readJson(req);
-    const mail = email(body);
+    const memberId = text(body, "memberId", { max: 64, label: "tu nombre" }).toLowerCase();
     const secret = text(body, "authSecret", { max: 128, label: "la clave de acceso" });
 
-    const rows = await sql`
-      SELECT id, auth_hash,
-             (locked_until IS NOT NULL AND locked_until > now()) AS locked,
-             (pin_reset_until IS NOT NULL AND pin_reset_until > now()) AS reset
-      FROM users WHERE email = ${mail}`;
+    const rows = UUID.test(memberId)
+      ? await sql`
+          SELECT id, auth_hash,
+                 (locked_until IS NOT NULL AND locked_until > now()) AS locked,
+                 (pin_reset_until IS NOT NULL AND pin_reset_until > now()) AS reset
+          FROM users WHERE id = ${memberId}`
+      : [];
     const u = rows[0];
-    if (!u) {
-      // Spend the same time as a real check so response time does not reveal which emails exist.
+    if (!u || !u.auth_hash) {
+      // Unknown or not yet joined: spend the same time as a real check so timing reveals nothing.
       await verifyAuthSecret(secret, await (dummyHash ??= hashAuthSecret("dummy")));
       throw BAD();
     }

@@ -14,8 +14,8 @@ import { formatEventDate } from "@/lib/dates";
 import { buildDraw, type DrawMember } from "@/lib/draw";
 
 type Status = {
-  members: { id: string; name: string; ready: boolean; resetPending: boolean }[];
-  expectedSize: number;
+  members: { id: string; name: string; claimed: boolean; ready: boolean; resetPending: boolean }[];
+  size: number;
   readyCount: number;
   drawDone: boolean;
   canDraw: boolean;
@@ -28,7 +28,7 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmRedo, setConfirmRedo] = useState(false);
-  const [sizeInput, setSizeInput] = useState<string | null>(null);
+  const [addInput, setAddInput] = useState<string | null>(null);
 
   const apply = useCallback((r: ApiResult<Status>) => {
     if (r.ok) setStatus(r.data);
@@ -90,10 +90,11 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
     }, "¡Sorteo hecho! Cada quien ya puede ver a quién le regala.");
   }
 
-  async function saveSize() {
-    const n = Number(sizeInput);
-    await run(() => apiFetch("/api/groups", "PATCH", { expectedSize: n }), "Listo, cambiamos el número de personas.");
-    setSizeInput(null);
+  async function addPerson() {
+    const name = (addInput ?? "").trim();
+    if (!name) return;
+    await run(() => apiFetch("/api/members", "POST", { name }), `${name} se agregó a la lista. Si el sorteo ya estaba hecho, hay que repetirlo.`);
+    setAddInput(null);
   }
 
   async function logout() {
@@ -101,8 +102,9 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
     router.replace("/");
   }
 
-  const total = status?.expectedSize ?? me.group.expectedSize;
+  const total = status?.size ?? 0;
   const waiting = status?.members.filter((m) => m.resetPending).map((m) => m.name) ?? [];
+  const notJoined = status?.members.filter((m) => !m.claimed).map((m) => m.name) ?? [];
 
   return (
     <>
@@ -135,14 +137,14 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
           <span style={{ fontWeight: 800 }}>{status ? `${status.readyCount} de ${total}` : "…"}</span>
         </div>
         <ProgressBar value={status?.readyCount ?? 0} max={total} label="Listas completas" />
-        {status && status.members.length < total && (
-          <span style={{ fontSize: 14, color: "var(--muted)" }}>Faltan {total - status.members.length} por unirse</span>
+        {notJoined.length > 0 && (
+          <span style={{ fontSize: 14, color: "var(--muted)" }}>Faltan por unirse: {notJoined.length}</span>
         )}
       </div>
 
       <ul className="card" style={{ padding: "6px 16px" }} aria-label="Personas del grupo">
         {status?.members.map((m, i) => (
-          <MemberRow key={m.id} name={m.name} ready={m.ready} resetPending={m.resetPending} index={i} isSelf={m.id === me.user.id}
+          <MemberRow key={m.id} name={m.name} claimed={m.claimed} ready={m.ready} resetPending={m.resetPending} index={i} isSelf={m.id === me.user.id}
             canManage={isOrganizer && m.id !== me.user.id} busy={busy}
             onAction={(a) =>
               run(
@@ -153,19 +155,19 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
         )) ?? <li style={{ listStyle: "none", padding: 12 }} className="lede">Cargando…</li>}
       </ul>
 
-      {isOrganizer && !status?.drawDone && (
+      {isOrganizer && (
         <div className="stack" style={{ gap: 8 }}>
-          {sizeInput === null ? (
-            <button type="button" className="btn btn-link" style={{ alignSelf: "flex-start", padding: 0 }} onClick={() => setSizeInput(String(total))}>
-              Somos {total} personas · Cambiar
+          {addInput === null ? (
+            <button type="button" className="btn btn-link" style={{ alignSelf: "flex-start", padding: 0 }} onClick={() => setAddInput("")}>
+              + Agregar a alguien a la lista
             </button>
           ) : (
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <label htmlFor="size" className="sr-only">Número de personas</label>
-              <input id="size" className="input" type="number" inputMode="numeric" min={2} max={50} style={{ width: 100, minHeight: 48 }}
-                value={sizeInput} onChange={(e) => setSizeInput(e.target.value)} />
-              <button type="button" className="btn btn-ghost" style={{ width: "auto", padding: "0 16px" }} disabled={busy} onClick={saveSize}>Guardar</button>
-              <button type="button" className="btn btn-link" onClick={() => setSizeInput(null)}>Cancelar</button>
+              <label htmlFor="nuevo" className="sr-only">Nombre de la persona</label>
+              <input id="nuevo" className="input" type="text" maxLength={60} placeholder="Nombre y apellido" autoFocus style={{ minHeight: 48 }}
+                value={addInput} onChange={(e) => setAddInput(e.target.value)} />
+              <button type="button" className="btn btn-ghost" style={{ width: "auto", padding: "0 16px" }} disabled={busy || !addInput.trim()} onClick={addPerson}>Agregar</button>
+              <button type="button" className="btn btn-link" onClick={() => setAddInput(null)}>Cancelar</button>
             </div>
           )}
         </div>
@@ -204,7 +206,9 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
                 ? "Todo listo. El sorteo se hace en tu celular y nadie verá los resultados."
                 : waiting.length
                   ? `Esperando a que ${waiting.join(", ")} elija su PIN nuevo`
-                  : `Se activa cuando las ${total} listas estén completas`}
+                  : notJoined.length
+                    ? `Esperando a que se unan: ${notJoined.join(", ")}`
+                    : `Se activa cuando las ${total} listas estén completas`}
             </span>
           </>
         ) : (

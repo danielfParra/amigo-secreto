@@ -1,8 +1,8 @@
 import { importPublicKey } from "@/lib/crypto/keys";
-import { HttpError, email, text } from "./http";
+import { NAME_MAX, nameKey } from "@/lib/names";
+import { HttpError, text } from "./http";
 
 export type Credentials = {
-  email: string;
   salt: string;
   authSecret: string;
   publicKey: string;
@@ -10,14 +10,9 @@ export type Credentials = {
   wrapIv: string;
 };
 
-export type AccountInput = Credentials & { name: string };
-
-export const NAME_MAX = 60;
-
-/** Validates the key material a browser sends when it creates or replaces its credentials. */
+/** Validates the key material a browser sends when someone claims a name or replaces their PIN. */
 export async function parseCredentials(body: Record<string, unknown>): Promise<Credentials> {
   const c: Credentials = {
-    email: email(body),
     salt: text(body, "salt", { max: 64, label: "la sal" }),
     authSecret: text(body, "authSecret", { max: 128, label: "la clave de acceso" }),
     publicKey: text(body, "publicKey", { max: 2000, label: "la clave pública" }),
@@ -32,8 +27,12 @@ export async function parseCredentials(body: Record<string, unknown>): Promise<C
   return c;
 }
 
-/** Credentials plus a display name: what a browser sends when creating an account. */
-export async function parseAccount(body: Record<string, unknown>): Promise<AccountInput> {
-  const name = text(body, "name", { max: NAME_MAX, label: "tu nombre" });
-  return { name, ...(await parseCredentials(body)) };
+/** A roster name: trimmed, single-spaced, 1..NAME_MAX characters. */
+export function cleanName(raw: unknown, field = "name"): string {
+  const name = typeof raw === "string" ? raw.normalize("NFC").trim().replace(/\s+/g, " ") : "";
+  if (!name) throw new HttpError(422, "Escribe un nombre", { field });
+  if (name.length > NAME_MAX) throw new HttpError(422, `El nombre no puede pasar de ${NAME_MAX} letras`, { field });
+  return name;
 }
+
+export { nameKey };

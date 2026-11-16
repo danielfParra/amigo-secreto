@@ -41,13 +41,6 @@ export function int(body: Record<string, unknown>, key: string, opts: { min: num
   return v;
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export function email(body: Record<string, unknown>, key = "email"): string {
-  const s = text(body, key, { max: 200, label: "el correo" }).toLowerCase();
-  if (!EMAIL.test(s)) throw new HttpError(422, "El correo no es válido", { field: key });
-  return s;
-}
-
 /** Runs a handler, turning thrown HttpErrors into JSON responses and anything else into a 500. */
 export async function handle(fn: () => Promise<Response>): Promise<Response> {
   try {

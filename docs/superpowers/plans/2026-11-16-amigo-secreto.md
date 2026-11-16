@@ -8,7 +8,16 @@
 
 **Tech Stack:** Next.js (App Router, TypeScript), Vitest, `@neondatabase/serverless`, WebCrypto, Node `crypto.scrypt` (server auth hash), `sharp` (dev, icon generation).
 
-**Spec:** `docs/superpowers/specs/2026-11-16-amigo-secreto-design.md`. Visual reference: the sketch's source files saved at `C:\Users\danie\AppData\Local\Temp\claude\6a0e874ebce8b832\f60f2a50-90ea-4248-b041-f264c8d9bc76\scratchpad\artifact-files\b7d3f523-a940-465b-9307-80e670f8139e\project\*.dc.html` (Inicio, Main=Unirse, Lista, Grupo, Sorteo, Privacidad). If that folder is gone, re-read the artifact `https://claude.ai/artifact/PhbL7ASMctRbBeqCKpJPz5`.
+**Spec:** `docs/superpowers/specs/2026-11-16-amigo-secreto-design.md`. Visual reference: the user's sketch (a private Claude design canvas with six screens: Inicio, Unirse, Lista, Grupo, Sorteo, Privacidad).
+
+
+> **Superseded in part (2026-11-16, user request): roster instead of email.** The email-based identity described in Tasks 4–6 and 9–10 below no longer exists. The spec's *Roster instead of email* section and this summary are authoritative; the code and tests follow them.
+>
+> - Tables: `groups(id, name, event_date, price_cap, invite_code, organizer_id, draw_done)` (single group via a unique index) and `users(id, group_id, name, salt, auth_hash, public_key, wrapped_private_key, wrap_iv, failed_attempts, locked_until, pin_reset_until)`. A row is *claimed* when `auth_hash IS NOT NULL`; unique `(group_id, lower(name))`. No email, no expected size.
+> - `POST /api/groups` `{groupName, eventDate?, priceCap, names[], me, salt, authSecret, publicKey, wrappedPrivateKey, wrapIv}` → 201 `{inviteCode}` (409 if a group exists; the organizer row is claimed in the same statement). `GET /api/groups/[code]` → names with claimed flags. `GET /api/roster` → claimed names for sign-in.
+> - `POST /api/join` `{inviteCode, memberId, ...credentials}` claims a name atomically (409 if taken). `GET /api/salt?memberId=`, `POST /api/login` `{memberId, authSecret}`, `POST /api/pin-reset` `{memberId, ...credentials}`.
+> - `POST /api/members` `{name}` adds a person (reopens a finished draw); `DELETE /api/members/[id]`; `POST /api/members/[id]/reset-pin`. `GET /api/group` → `{members:[{id,name,claimed,ready,resetPending}], size, readyCount, drawDone, canDraw}` with `canDraw` needing every name claimed, every list complete and no open reset. `PATCH /api/groups` was removed.
+> - Client: `createCredentials(pin)` (no name or email), `loginSecrets`, `unlockPrivateKey`. Names are sorted with `Intl.Collator('es')` (`lib/names.ts`).
 
 ## Global Constraints
 
@@ -21,7 +30,7 @@
 - Draw unlocks only when joined members == expected size and all lists complete. Self-pairing impossible. Draw is organizer-only; organizer may reset it.
 - Server never receives the PIN, any plaintext pairing, or a request revealing who looked up whose wishes.
 - Session: random token in `sessions` table, httpOnly + Secure + SameSite=Lax cookie, 30 days.
-- Typography from the sketch: Figtree. Palette supplied by the user (supersedes the sketch colors): red `#A60B08`, deep red `#5E0001`, deep green `#1D2E19` (ink), sand `#CFCABF` (page background), brown `#76584C` (only behind white text; small text uses darker `#5A4238`), plus derived card `#EFECE5` and line `#B9B3A5`; 44px minimum touch targets; respect `prefers-reduced-motion`.
+- Typography: Public Sans (replaces the sketch's Figtree). Palette supplied by the user (supersedes the sketch colors): red `#A60B08`, deep red `#5E0001`, deep green `#1D2E19` (ink), sand `#CFCABF` (page background), brown `#76584C` (only behind white text; small text uses darker `#5A4238`), plus derived card `#EFECE5` and line `#B9B3A5`; 44px minimum touch targets; respect `prefers-reduced-motion`.
 - No emails are sent; email is only a login identifier (unique per group).
 
 ## Review Focus
@@ -160,7 +169,7 @@
 ### Task 8: UI foundation, Inicio and PWA
 
 **Files:**
-- Create: `app/layout.tsx` (Figtree via `next/font`, `lang="es"`, theme-color, apple meta), `app/globals.css` (tokens from Global Constraints), `components/Regalito.tsx`, `components/Bubble.tsx`, `components/Button.tsx`, `components/ProgressBar.tsx`, `app/page.tsx` (Inicio), `app/manifest.ts`, `public/sw.js`, `components/RegisterSW.tsx`, `scripts/make-icons.ts`, `public/icons/*`
+- Create: `app/layout.tsx` (Public Sans via `next/font`, `lang="es"`, theme-color, apple meta), `app/globals.css` (tokens from Global Constraints), `components/Regalito.tsx`, `components/Bubble.tsx`, `components/Button.tsx`, `components/ProgressBar.tsx`, `app/page.tsx` (Inicio), `app/manifest.ts`, `public/sw.js`, `components/RegisterSW.tsx`, `scripts/make-icons.ts`, `public/icons/*`
 - Test: `components/components.test.tsx` is **not** required; verify visually.
 
 **Interfaces:**

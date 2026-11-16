@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Bubble from "@/components/Bubble";
 import Button from "@/components/Button";
@@ -10,9 +10,12 @@ import { apiFetch } from "@/lib/client/api";
 import { createCredentials, loginSecrets } from "@/lib/client/session";
 import { MIN_PIN_LENGTH } from "@/lib/crypto/kdf";
 
+type Roster = { group: { name: string } | null; members: { id: string; name: string }[] };
+
 export default function Entrar() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [roster, setRoster] = useState<Roster | null>(null);
+  const [memberId, setMemberId] = useState("");
   const [pin, setPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -20,13 +23,22 @@ export default function Entrar() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<Roster>("/api/roster").then((r) => {
+      if (!cancelled) setRoster(r.ok ? r.data : { group: null, members: [] });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function signIn() {
-    const mail = email.trim().toLowerCase();
-    if (!mail || !pin) {
-      setError("Escribe tu correo y tu PIN");
+    if (!memberId || !pin) {
+      setError("Elige tu nombre y escribe tu PIN");
       return;
     }
-    const salt = await apiFetch<{ salt: string; reset: boolean }>(`/api/salt?email=${encodeURIComponent(mail)}`);
+    const salt = await apiFetch<{ salt: string; reset: boolean }>(`/api/salt?memberId=${encodeURIComponent(memberId)}`);
     if (!salt.ok) {
       setError(salt.error);
       return;
@@ -36,7 +48,7 @@ export default function Entrar() {
       return;
     }
     const { authSecret } = await loginSecrets(pin, salt.data.salt);
-    const r = await apiFetch("/api/login", "POST", { email: mail, authSecret });
+    const r = await apiFetch("/api/login", "POST", { memberId, authSecret });
     if (r.ok) {
       router.push("/grupo");
       return;
@@ -54,8 +66,8 @@ export default function Entrar() {
       setError("Los dos PIN no coinciden");
       return;
     }
-    const creds = await createCredentials({ pin: newPin, email });
-    const r = await apiFetch("/api/pin-reset", "POST", creds);
+    const creds = await createCredentials(newPin);
+    const r = await apiFetch("/api/pin-reset", "POST", { memberId, ...creds });
     if (r.ok) {
       router.push("/grupo");
       return;
@@ -76,6 +88,8 @@ export default function Entrar() {
     setBusy(false);
   }
 
+  const noGroup = roster !== null && !roster.group;
+
   return (
     <main className="screen" style={{ paddingTop: "calc(44px + env(safe-area-inset-top))" }}>
       <Clouds />
@@ -85,44 +99,51 @@ export default function Entrar() {
           <p className="lede">
             {resetMode
               ? "Tu organizador restableció tu PIN. Elige uno nuevo para entrar."
-              : "Entra con el correo y el PIN con los que te uniste."}
+              : "Elige tu nombre y escribe el PIN con el que te uniste."}
           </p>
         </div>
 
-        <div className="stack">
-          <Field id="correo" label="Correo electrónico" type="email" autoComplete="email" inputMode="email"
-            placeholder="tucorreo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)}
-            readOnly={resetMode} />
-          {resetMode ? (
-            <>
-              <Field id="pin-nuevo" label="PIN nuevo" type="password" autoComplete="new-password"
-                placeholder="Mínimo 4 caracteres" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
-              <Field id="pin-confirmar" label="Repite el PIN nuevo" type="password" autoComplete="new-password"
-                value={confirmPin} onChange={(e) => setConfirmPin(e.target.value)} />
-            </>
-          ) : (
-            <Field id="pin" label="PIN o contraseña" type="password" autoComplete="current-password"
-              value={pin} onChange={(e) => setPin(e.target.value)} />
-          )}
-        </div>
+        {noGroup ? (
+          <Bubble tone="brown" style={{ maxWidth: "none" }}>Aún no hay un grupo creado. Quien organiza tiene que crearlo primero.</Bubble>
+        ) : (
+          <div className="stack">
+            <div className="field">
+              <label htmlFor="quien">¿Quién eres?</label>
+              <select id="quien" className="input" value={memberId} disabled={resetMode || roster === null}
+                onChange={(e) => setMemberId(e.target.value)}>
+                <option value="">{roster === null ? "Cargando…" : "Elige tu nombre"}</option>
+                {roster?.members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            {resetMode ? (
+              <>
+                <Field id="pin-nuevo" label="PIN nuevo" type="password" autoComplete="new-password"
+                  placeholder="Mínimo 4 caracteres" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
+                <Field id="pin-confirmar" label="Repite el PIN nuevo" type="password" autoComplete="new-password"
+                  value={confirmPin} onChange={(e) => setConfirmPin(e.target.value)} />
+              </>
+            ) : (
+              <Field id="pin" label="PIN o contraseña" type="password" autoComplete="current-password"
+                value={pin} onChange={(e) => setPin(e.target.value)} />
+            )}
+          </div>
+        )}
 
         {resetMode && (
           <Bubble tone="brown">Tus deseos siguen guardados. Si el sorteo ya estaba hecho, quien organiza lo repetirá.</Bubble>
         )}
 
-        {error && (
-          <span role="alert" className="error">
-            {error}
-          </span>
-        )}
+        {error && <span role="alert" className="error">{error}</span>}
 
         <div className="push stack" style={{ alignItems: "center", gap: 6 }}>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? (resetMode ? "Creando tu llave nueva…" : "Entrando…") : resetMode ? "Guardar PIN nuevo y entrar" : "Entrar"}
-          </button>
-          <Button variant="link" href="/unirse">
-            Unirme a un grupo
-          </Button>
+          {noGroup ? (
+            <Button href="/crear">Crear el grupo</Button>
+          ) : (
+            <button type="submit" className="btn btn-primary" disabled={busy || roster === null}>
+              {busy ? (resetMode ? "Creando tu llave nueva…" : "Entrando…") : resetMode ? "Guardar PIN nuevo y entrar" : "Entrar"}
+            </button>
+          )}
+          <Button variant="link" href="/unirse">Aún no me he unido</Button>
         </div>
       </form>
     </main>

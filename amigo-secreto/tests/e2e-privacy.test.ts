@@ -1,34 +1,31 @@
 import "@/tests/db-guard";
 import { describe, test, expect, beforeAll } from "vitest";
 import { resetDb } from "@/tests/reset-db";
-import { IT, makeAccount, mkReq, sessionCookie, type Account } from "@/tests/helpers";
+import { IT, mkReq, sessionCookie, createFamily, claim, saveWishes, type Family, type Person } from "@/tests/helpers";
 import { sql } from "@/lib/db";
 import { buildDraw } from "@/lib/draw";
 import { deriveSecrets } from "@/lib/crypto/kdf";
 import { unwrapPrivateKey } from "@/lib/crypto/keys";
 import { openPayload } from "@/lib/crypto/hybrid";
-import { POST as createGroup } from "@/app/api/groups/route";
-import { POST as join } from "@/app/api/join/route";
 import { GET as getSalt } from "@/app/api/salt/route";
 import { POST as login } from "@/app/api/login/route";
 import { GET as me } from "@/app/api/me/route";
-import { PUT as putWishes } from "@/app/api/wishes/route";
 import { GET as drawInputs } from "@/app/api/draw/inputs/route";
 import { POST as postDraw } from "@/app/api/draw/route";
 import { GET as getResult } from "@/app/api/result/route";
 
-// Distinctive values so a leak is easy to grep for in what the server stores.
-const NAMES = ["Zulema", "Bartolomé", "Ximena", "Evaristo", "Nicanora"];
+// Distinctive fake names and PINs so a leak is easy to grep for in what the server stores.
+const NAMES = ["Zulema Gil", "Bartolomé Ruiz", "Ximena Soto", "Evaristo Mora", "Nicanora Vega"];
 const PINS = ["pin-Zulema-77", "pin-Bartolome-77", "pin-Ximena-77", "pin-Evaristo-77", "pin-Nicanora-77"];
 
-type Person = { acct: Account; name: string; pin: string; cookie: string };
-const people: Person[] = [];
+let fam: Family;
+const pinOf = (p: Person) => PINS[NAMES.indexOf(p.name)];
 
 /** What a browser does to sign in: fetch the salt, derive the auth secret, log in, then unlock the private key. */
 async function signInAndUnlock(p: Person) {
-  const { salt } = await (await getSalt(mkReq("GET", `/api/salt?email=${encodeURIComponent(p.acct.email)}`))).json();
-  const { authSecret, wrapKey } = await deriveSecrets(p.pin, salt, IT);
-  const res = await login(mkReq("POST", "/api/login", { email: p.acct.email, authSecret }));
+  const { salt } = await (await getSalt(mkReq("GET", `/api/salt?memberId=${p.id}`))).json();
+  const { authSecret, wrapKey } = await deriveSecrets(pinOf(p), salt, IT);
+  const res = await login(mkReq("POST", "/api/login", { memberId: p.id, authSecret }));
   expect(res.status).toBe(200);
   const cookie = sessionCookie(res);
   const mine = await (await me(mkReq("GET", "/api/me", undefined, cookie))).json();
@@ -38,32 +35,23 @@ async function signInAndUnlock(p: Person) {
 
 beforeAll(async () => {
   await resetDb();
-  const first = await makeAccount(NAMES[0], "zulema@example.com", PINS[0]);
-  const created = await createGroup(
-    mkReq("POST", "/api/groups", { groupName: "Fam", priceCap: 60000, expectedSize: NAMES.length, ...first.fields }),
-  );
-  const { inviteCode } = await created.json();
-  people.push({ acct: first, name: NAMES[0], pin: PINS[0], cookie: sessionCookie(created) });
-  for (let i = 1; i < NAMES.length; i++) {
-    const a = await makeAccount(NAMES[i], `${NAMES[i].toLowerCase()}@example.com`, PINS[i]);
-    const r = await join(mkReq("POST", "/api/join", { inviteCode, ...a.fields }));
-    people.push({ acct: a, name: NAMES[i], pin: PINS[i], cookie: sessionCookie(r) });
-  }
-  for (const p of people) {
+  fam = await createFamily({ names: NAMES, organizer: NAMES[0], pin: PINS[0] });
+  // Everyone else claims their name with their own PIN.
+  for (const p of fam.people) p.pin = pinOf(p);
+  for (const p of fam.people) if (!p.creds) expect((await claim(fam, p, pinOf(p))).status).toBe(201);
+  for (const p of fam.people) {
     const wishes = [1, 2, 3].map((n) => ({ title: `Regalo ${n} de ${p.name}`, price: `$${n}0.000` }));
-    const r = await putWishes(mkReq("PUT", "/api/wishes", { wishes }, p.cookie));
-    expect(r.status).toBe(200);
+    expect((await saveWishes(p, wishes)).status).toBe(200);
   }
-  const org = people[0];
-  const inputs = await (await drawInputs(mkReq("GET", "/api/draw/inputs", undefined, org.cookie))).json();
+  const inputs = await (await drawInputs(mkReq("GET", "/api/draw/inputs", undefined, fam.org.cookie))).json();
   const results = await buildDraw(inputs);
-  expect((await postDraw(mkReq("POST", "/api/draw", { results }, org.cookie))).status).toBe(200);
+  expect((await postDraw(mkReq("POST", "/api/draw", { results }, fam.org.cookie))).status).toBe(200);
 });
 
 describe("end-to-end privacy", () => {
   test("every person signs in with their PIN, opens their own result, and the pairings form a derangement", async () => {
     const givesTo = new Map<string, string>();
-    for (const p of people) {
+    for (const p of fam.people) {
       const { cookie, privateKey } = await signInAndUnlock(p);
       const { sealed } = await (await getResult(mkReq("GET", "/api/result", undefined, cookie))).json();
       const payload = await openPayload<{ receiverName: string; wishes: { title: string }[] }>(sealed, privateKey);
@@ -75,8 +63,8 @@ describe("end-to-end privacy", () => {
   });
 
   test("a wrong PIN cannot unlock the private key", async () => {
-    const p = people[1];
-    const { salt } = await (await getSalt(mkReq("GET", `/api/salt?email=${encodeURIComponent(p.acct.email)}`))).json();
+    const p = fam.people[1];
+    const { salt } = await (await getSalt(mkReq("GET", `/api/salt?memberId=${p.id}`))).json();
     const wrong = await deriveSecrets("totally-wrong", salt, IT);
     const mine = await (await me(mkReq("GET", "/api/me", undefined, p.cookie))).json();
     await expect(unwrapPrivateKey(mine.wrappedPrivateKey, mine.wrapIv, wrong.wrapKey)).rejects.toBeDefined();
@@ -107,10 +95,15 @@ describe("end-to-end privacy", () => {
   });
 
   test("nobody can open someone else's result with their own key", async () => {
-    const a = people[1];
-    const b = people[2];
+    const a = fam.people[1];
+    const b = fam.people[2];
     const { cookie } = await signInAndUnlock(a);
     const { sealed } = await (await getResult(mkReq("GET", "/api/result", undefined, cookie))).json();
-    await expect(openPayload(sealed, b.acct.privateKey)).rejects.toBeDefined();
+    await expect(openPayload(sealed, b.creds!.privateKey)).rejects.toBeDefined();
+  });
+
+  test("the database holds no email anywhere", async () => {
+    const cols = await sql`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public'`;
+    expect(cols.map((c) => c.column_name)).not.toContain("email");
   });
 });

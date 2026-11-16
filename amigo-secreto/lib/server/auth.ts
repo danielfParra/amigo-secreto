@@ -24,9 +24,9 @@ export async function verifyAuthSecret(secret: string, stored: string): Promise<
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-/** Stable fake salt for unknown emails, so /api/salt does not reveal which emails exist. */
-export function fakeSalt(email: string): string {
+/** Stable fake salt for unknown or unclaimed members, so /api/salt does not reveal who has joined. */
+export function fakeSalt(memberId: string): string {
   const key = process.env.SALT_SECRET;
   if (!key) throw new Error("SALT_SECRET is not set");
-  return createHmac("sha256", key).update(email.trim().toLowerCase()).digest().subarray(0, 16).toString("base64");
+  return createHmac("sha256", key).update(memberId.trim().toLowerCase()).digest().subarray(0, 16).toString("base64");
 }

@@ -14,6 +14,7 @@ const COPY: Record<Action, { ask: string; confirm: string }> = {
 /** One person in the group list. The organizer gets reset-PIN and remove actions, each with an inline confirmation. */
 export default function MemberRow({
   name,
+  claimed,
   ready,
   resetPending,
   index,
@@ -23,6 +24,7 @@ export default function MemberRow({
   onAction,
 }: {
   name: string;
+  claimed: boolean;
   ready: boolean;
   resetPending: boolean;
   index: number;
@@ -55,12 +57,12 @@ export default function MemberRow({
           {name}
           {isSelf && <span style={{ color: "var(--muted)", fontWeight: 500 }}> (tú)</span>}
         </span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: ready ? "var(--ok)" : "var(--muted)" }}>{resetPending ? "Elegirá PIN nuevo" : ready ? "Lista" : "Pendiente"}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: ready ? "var(--ok)" : "var(--muted)" }}>{!claimed ? "Sin unirse" : resetPending ? "Elegirá PIN nuevo" : ready ? "Lista" : "Pendiente"}</span>
       </div>
 
       {canManage && !pending && (
         <div style={{ display: "flex", gap: 8, paddingLeft: 46 }}>
-          <button type="button" style={small} disabled={busy} onClick={() => setPending("pin")}>Restablecer PIN</button>
+          {claimed && <button type="button" style={small} disabled={busy} onClick={() => setPending("pin")}>Restablecer PIN</button>}
           <button type="button" style={small} disabled={busy} onClick={() => setPending("quitar")}>Quitar</button>
         </div>
       )}

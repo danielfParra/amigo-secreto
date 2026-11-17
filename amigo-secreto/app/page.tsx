@@ -1,11 +1,13 @@
 import Button from "@/components/Button";
 import Clouds from "@/components/Clouds";
-import { Candy, Gift, Pine, Snowflake, Tree } from "@/components/Icons";
+import FirstVisit from "@/components/FirstVisit";
+import { Candy, Gift, Pine, Snowflake, Star, Tree } from "@/components/Icons";
 
 export default function Inicio() {
   return (
     <main className="screen screen-hero" style={{ alignItems: "center", paddingTop: "calc(44px + env(safe-area-inset-top))" }}>
       <Clouds variant="inicio" />
+      <FirstVisit />
       <h1 className="hero-title anim-fadeup">
         Celebremos <em>Navidad</em> juntos
       </h1>
@@ -18,6 +20,9 @@ export default function Inicio() {
           <Gift size={64} className="collage-icon bob" style={{ left: "14%", top: 220, "--r": "-6deg" } as React.CSSProperties} />
           <Candy size={52} className="collage-icon bob" style={{ left: "50%", top: 236, marginLeft: -26, "--r": "-10deg" } as React.CSSProperties} />
           <Gift size={56} className="collage-icon bob" style={{ right: "14%", top: 228, "--r": "6deg" } as React.CSSProperties} />
+          <Star size={30} className="collage-icon twinkle-slow" style={{ left: "30%", top: 6 }} />
+          <Star size={22} className="collage-icon twinkle-slow" style={{ right: "26%", top: 40, animationDelay: "0.9s" }} />
+          <Star size={18} className="collage-icon twinkle-slow" style={{ left: "4%", top: 190, animationDelay: "0.4s" }} />
           <Snowflake size={44} className="collage-icon spin" style={{ right: 6, top: 0 }} />
           <Snowflake size={30} className="collage-icon spin" style={{ left: 8, top: 14 }} />
         </div>
@@ -27,6 +32,9 @@ export default function Inicio() {
         <Button href="/unirse">Empezar</Button>
         <Button variant="link" href="/entrar">
           Ya tengo cuenta
+        </Button>
+        <Button variant="link" href="/bienvenida">
+          Cómo funciona
         </Button>
       </div>
     </main>

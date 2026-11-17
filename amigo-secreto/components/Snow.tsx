@@ -10,9 +10,28 @@ const FLAKES = Array.from({ length: 14 }, (_, i) => ({
 
 const ARM = "M12 2v20M12 6l-3-3M12 6l3-3M12 18l-3 3M12 18l3 3";
 
+const STARS = [
+  { left: 18, size: 14, dur: 15, delay: -4, sway: 18, spin: 1 },
+  { left: 47, size: 17, dur: 19, delay: -11, sway: -22, spin: -1 },
+  { left: 71, size: 13, dur: 16, delay: -7, sway: 16, spin: 1 },
+  { left: 90, size: 16, dur: 21, delay: -2, sway: -14, spin: -1 },
+];
+const STAR_PATH = "M24 3l5.6 12.2 13.3 1.5-9.9 9 2.8 13.1L24 32l-11.8 6.8 2.8-13.1-9.9-9 13.3-1.5z";
+
 export default function Snow() {
   return (
     <div className="snow" aria-hidden="true">
+      {STARS.map((s, i) => (
+        <span
+          key={`s${i}`}
+          className="flake"
+          style={{ left: `${s.left}%`, width: s.size, height: s.size, animationDuration: `${s.dur}s`, animationDelay: `${s.delay}s`, "--sway": `${s.sway}px`, "--spin": `${s.spin * 360}deg` } as React.CSSProperties}
+        >
+          <svg viewBox="0 0 48 48" width="100%" height="100%">
+            <path d={STAR_PATH} fill="#f2c230" stroke="#b07d0a" strokeWidth="3" strokeLinejoin="round" />
+          </svg>
+        </span>
+      ))}
       {FLAKES.map((f, i) => (
         <span
           key={i}

@@ -34,7 +34,7 @@ export function Tree({ size = 40, className, style }: P) {
     <svg {...base(size)} className={className} style={style}>
       <rect x="21" y="38" width="6" height="8" rx="1" fill="#6b4226" />
       <path d="M24 6 36 20h-5l8 11H9l8-11h-5z" fill="#0b8a52" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M24 2l2.3 4.6 5 .7-3.6 3.5.9 5L24 13.4l-4.6 2.4.9-5-3.6-3.5 5-.7z" fill="#fff" stroke="#c8102e" strokeWidth="1.6" strokeLinejoin="round" className="twinkle" />
+      <path d="M24 2l2.3 4.6 5 .7-3.6 3.5.9 5L24 13.4l-4.6 2.4.9-5-3.6-3.5 5-.7z" fill="#f2c230" stroke="#b07d0a" strokeWidth="1.6" strokeLinejoin="round" className="twinkle" />
       <circle cx="19" cy="27" r="2.3" fill="#c8102e" className="lamp" />
       <circle cx="29" cy="25" r="2.3" fill="#fff" className="lamp l2" />
       <circle cx="24" cy="32" r="2.3" fill="#ff8da1" className="lamp l3" />
@@ -45,7 +45,7 @@ export function Tree({ size = 40, className, style }: P) {
 export function Star({ size = 40, className, style }: P) {
   return (
     <svg {...base(size)} className={className} style={style}>
-      <path d="M24 3l5.6 12.2 13.3 1.5-9.9 9 2.8 13.1L24 32l-11.8 6.8 2.8-13.1-9.9-9 13.3-1.5z" fill="#fff" stroke="#c8102e" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M24 3l5.6 12.2 13.3 1.5-9.9 9 2.8 13.1L24 32l-11.8 6.8 2.8-13.1-9.9-9 13.3-1.5z" fill="#f2c230" stroke="#b07d0a" strokeWidth="2.5" strokeLinejoin="round" />
     </svg>
   );
 }

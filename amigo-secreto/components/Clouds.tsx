@@ -1,4 +1,4 @@
-import { Holly, Pine } from "./Icons";
+import { Holly, Pine, Star } from "./Icons";
 
 // A tile with two tiny snowflakes, used as the page texture.
 const tile = (color: string, opacity: number) =>
@@ -34,6 +34,10 @@ export default function Clouds({ variant = "soft" }: { variant?: "inicio" | "sof
         ))}
       </div>
       <Holly size={64} className="deco deco-holly" />
+      <Star size={22} className="deco gold-star twinkle-slow" style={{ left: "9%", top: 118 }} />
+      <Star size={15} className="deco gold-star twinkle-slow" style={{ right: "12%", top: "42%", animationDelay: "0.8s" }} />
+      <Star size={18} className="deco gold-star twinkle-slow" style={{ left: "6%", top: "58%", animationDelay: "1.5s" }} />
+      <Star size={13} className="deco gold-star twinkle-slow" style={{ right: "26%", top: "22%", animationDelay: "0.3s" }} />
     </div>
   );
 }

@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ICONS } from "./Icons";
 
-const TONES = ["tone-blue", "tone-red", "tone-green", "tone-purple", "tone-yellow"];
-const TILTS = [-2.2, 1.6, -1, 2.4, -1.8, 1.2];
+const TONES = ["var(--pine)", "var(--red)", "var(--green)", "var(--berry)"];
 
 type Action = "pin" | "quitar";
 
@@ -49,41 +47,31 @@ export default function MemberRow({
     cursor: "pointer",
   };
   const label = !claimed ? "Sin unirse" : resetPending ? "Elegirá PIN nuevo" : ready ? "Lista" : "Pendiente";
-  const num = String(index + 1).padStart(2, "0");
-  const Icon = ICONS[index % ICONS.length];
+
+  const cls = !claimed ? "status" : resetPending ? "status wait" : ready ? "status ok" : "status";
 
   return (
-    <li className="slot">
-      {claimed ? (
-        <div
-          className={`sticker ${TONES[index % TONES.length]}${ready ? " foil" : ""}`}
-          style={{ "--tilt": `${TILTS[index % TILTS.length]}deg`, "--i": index } as React.CSSProperties}
-        >
-          <span className="num">N.º {num}</span>
-          <Icon size={30} className="icon" />
-          <span className="who">
-            {name}
-            {isSelf && " (tú)"}
-          </span>
-          <span className="state">{label}</span>
-        </div>
-      ) : (
-        <div className="sticker empty">
-          <span className="num">N.º {num}</span>
-          <span className="who">{name}</span>
-          <span className="state">{label}</span>
-        </div>
-      )}
+    <li className="person">
+      <div className="person-main">
+        <span className="avatar" aria-hidden="true" style={{ background: claimed ? TONES[index % TONES.length] : "#b7cdbf" }}>
+          {name.charAt(0).toUpperCase()}
+        </span>
+        <span className="person-name">
+          {name}
+          {isSelf && <span style={{ color: "var(--muted)", fontWeight: 500 }}> (tú)</span>}
+        </span>
+        <span className={cls}>{label}</span>
+      </div>
 
       {canManage && !pending && (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 50 }}>
           {claimed && <button type="button" style={small} disabled={busy} onClick={() => setPending("pin")}>Restablecer PIN</button>}
           <button type="button" style={small} disabled={busy} onClick={() => setPending("quitar")}>Quitar</button>
         </div>
       )}
 
       {canManage && pending && (
-        <div role="group" aria-label={`Confirmar: ${COPY[pending].ask} a ${name}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div role="group" aria-label={`Confirmar: ${COPY[pending].ask} a ${name}`} style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 50 }}>
           <span style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.35 }}>{COPY[pending].confirm}</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button type="button" style={{ ...small, background: "var(--ink)", color: "#fff" }} disabled={busy}

@@ -1,9 +1,10 @@
-/** A sealed sticker pack (sobre). Decorative: the surrounding screen carries the meaning. */
+import { Gift } from "./Icons";
+
+/** A big wrapped gift for the "open your result" screen. Decorative: the surrounding screen carries the meaning. */
 export default function Pack({ style }: { style?: React.CSSProperties }) {
   return (
-    <div className="pack" role="img" aria-label="Un sobre de láminas sin abrir" style={style}>
-      <span className="mark">?</span>
-      <span className="shine" />
+    <div role="img" aria-label="Un regalo sin abrir" style={{ ...style, filter: "drop-shadow(0 12px 14px rgb(10 40 28 / 0.3))" }} className="bob">
+      <Gift size={190} />
     </div>
   );
 }

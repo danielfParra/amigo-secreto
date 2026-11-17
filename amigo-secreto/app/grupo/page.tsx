@@ -143,7 +143,7 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
         )}
       </div>
 
-      <ul className="album" aria-label="Personas del grupo">
+      <ul className="card people" aria-label="Personas del grupo">
         {status?.members.map((m, i) => (
           <MemberRow key={m.id} name={m.name} claimed={m.claimed} ready={m.ready} resetPending={m.resetPending} index={i} isSelf={m.id === me.user.id}
             canManage={isOrganizer && m.id !== me.user.id} busy={busy}

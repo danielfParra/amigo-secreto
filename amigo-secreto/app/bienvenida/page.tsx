@@ -150,7 +150,10 @@ function safeLocal(raw: string | null): string | null {
     const u = new URL(raw, base);
     if (u.origin !== base) return null;
     if (u.pathname === "/" || u.pathname.startsWith("/bienvenida")) return null;
-    return u.pathname + u.search + u.hash;
+    // Dot segments can normalise to a leading "//" (e.g. "/.//evil.com"), which a browser reads as another site.
+    const out = u.pathname + u.search + u.hash;
+    if (!out.startsWith("/") || out.startsWith("//")) return null;
+    return out;
   } catch {
     return null;
   }

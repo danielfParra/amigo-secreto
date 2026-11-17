@@ -126,7 +126,7 @@ function Chats({ keys, userId, onGone }: { keys: ChatKeys; userId: string; onGon
           ? `Le escribes a ${keys.receiverName}, pero no sabrá que eres tú.`
           : "Tu amigo secreto te escribe aquí. No sabes quién es."}
       </p>
-      <Pane thread={keys.toThread} role="g" hint="Aún no hay mensajes. Escribe una pista o una pregunta." visible={tab === "to"} onGone={onGone} />
+      <Pane thread={keys.toThread} role="g" hint="Aún no hay mensajes. Pregunta por sus gustos o pide ayuda con el regalo." visible={tab === "to"} onGone={onGone} />
       <Pane thread={keys.fromThread} role="r" hint="Aún no te han escrito. Puedes responder cuando lo hagan." visible={tab === "from"} onGone={onGone} />
     </>
   );

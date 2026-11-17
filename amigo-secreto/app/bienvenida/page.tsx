@@ -93,12 +93,12 @@ const SLIDES = [
   },
   {
     title: "Chats incógnitos",
-    text: "Cuando se haga el sorteo, escríbele pistas a tu amigo secreto sin que sepa quién eres. Y quien te regala también puede escribirte a ti. Los mensajes van cifrados.",
+    text: "Cuando se haga el sorteo, puedes escribirle a tu amigo secreto sin que sepa quién eres: pregúntale por sus gustos o pide ayuda con su regalo si la necesitas. Quien te regala también puede escribirte a ti. Los mensajes van cifrados.",
     art: (
       <div className="ob-chat" aria-hidden="true">
-        <div className="msg theirs ob-b1">¿Qué tal si me das una pista?</div>
-        <div className="msg mine ob-b2">Me encanta el chocolate caliente</div>
-        <div className="msg theirs ob-b3">Anotado. ¿Eres de la familia?</div>
+        <div className="msg theirs ob-b1">¿Me ayudas? No sé qué talla usas</div>
+        <div className="msg mine ob-b2">Uso talla M. ¡Gracias por preguntar!</div>
+        <div className="msg theirs ob-b3">¿Prefieres el color verde o el rojo?</div>
         <Bell size={34} className="ob-bell swing" />
       </div>
     ),

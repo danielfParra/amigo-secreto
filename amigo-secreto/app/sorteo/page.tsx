@@ -77,20 +77,20 @@ function Reveal({ me }: { me: Me }) {
           <span className="reveal">{result.receiverName}</span>
         </div>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 8 }}>Sus tres deseos</h2>
-        <ul className="stack" style={{ gap: 10, listStyle: "none" }}>
+        <ul className="stack" style={{ gap: 12, listStyle: "none", padding: 0 }}>
           {result.wishes.map((w, i) => {
             const href = safeHref(w.link ?? null);
             return (
-              <li key={i} className="card" style={{ borderRadius: 22, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                <span className={TONES[i % 3]} style={{ width: 30, height: 30, borderRadius: "50%", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{i + 1}</span>
-                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, overflowWrap: "anywhere" }}>{w.title}</span>
-                  <span style={{ fontSize: 14, color: "var(--muted)" }}>{formatCop(w.price)}</span>
-                  {w.details && <span style={{ fontSize: 14, overflowWrap: "anywhere" }}>{w.details}</span>}
+              <li key={i} className="card" style={{ borderRadius: 22, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <span className={TONES[i % 3]} style={{ width: 32, height: 32, borderRadius: "50%", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{i + 1}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 18, fontWeight: 800, lineHeight: 1.25, overflowWrap: "anywhere", paddingTop: 3 }}>{w.title}</span>
                 </div>
+                <span className="chip tone-green" style={{ alignSelf: "flex-start" }}>{formatCop(w.price)} COP</span>
+                {w.details && <p style={{ fontSize: 15, lineHeight: 1.4, overflowWrap: "anywhere", margin: 0 }}>{w.details}</p>}
                 {href && (
-                  <a href={href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, fontWeight: 700, minHeight: 44, display: "flex", alignItems: "center", padding: "0 4px", textDecoration: "underline" }}>
-                    Ver
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ textDecoration: "none", fontWeight: 700 }}>
+                    Ver el regalo
                   </a>
                 )}
               </li>

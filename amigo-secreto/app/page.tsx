@@ -7,7 +7,7 @@ export default function Inicio() {
     <main className="screen screen-hero" style={{ alignItems: "center", paddingTop: "calc(44px + env(safe-area-inset-top))" }}>
       <Clouds variant="inicio" />
       <h1 className="hero-title anim-fadeup">
-        ¿Quién te <em>tocará</em> este año?
+        Celebremos <em>Navidad</em> juntos
       </h1>
 
       <div className="collage" aria-hidden="true">

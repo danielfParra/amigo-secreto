@@ -1,7 +1,7 @@
 "use client";
 
 import Clouds from "@/components/Clouds";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import WishCard, { type WishDraft, type WishErrors } from "@/components/WishCard";
@@ -10,6 +10,16 @@ import { useMe, type Me } from "@/lib/client/useMe";
 import { formatCop, parseCop } from "@/lib/cop";
 
 const EMPTY: WishDraft = { title: "", price: "", link: "", details: "" };
+
+function BackLink({ onClick }: { onClick?: (e: React.MouseEvent) => void }) {
+  return (
+    <Link href="/grupo" className="back" aria-label="Volver al grupo" onClick={onClick}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </Link>
+  );
+}
 
 function ListaForm({ me }: { me: Me }) {
   const router = useRouter();
@@ -24,6 +34,28 @@ function ListaForm({ me }: { me: Me }) {
   const [serverErrors, setServerErrors] = useState<WishErrors[]>([{}, {}, {}]);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Once a full list is saved it can be edited until the draw, but only a complete list is ever saved:
+  // leaving with unsaved or half-erased edits keeps the previous saved list.
+  const hadList = me.wishes.length === 3;
+  const saved = [0, 1, 2].map((i) => {
+    const w = me.wishes[i];
+    return w ? { title: w.title, price: formatCop(w.price), link: w.link ?? "", details: w.details ?? "" } : EMPTY;
+  });
+  const dirty = wishes.some((w, i) => (Object.keys(w) as (keyof WishDraft)[]).some((k) => w[k] !== saved[i][k]));
+  const hasBlank = wishes.some((w) => !w.title.trim() || parseCop(w.price) === null);
+  const leaveWarning = hadList && !locked && dirty;
+
+  useEffect(() => {
+    if (!leaveWarning) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [leaveWarning]);
+
+  function leave(e: React.MouseEvent) {
+    if (leaveWarning && !window.confirm("Si sales ahora, vuelves a tu lista anterior. ¿Salir sin guardar?")) e.preventDefault();
+  }
 
   // Over-cap is shown live, as in the sketch; other problems appear when saving.
   const liveErrors = wishes.map((w): WishErrors => {
@@ -68,6 +100,7 @@ function ListaForm({ me }: { me: Me }) {
 
   return (
     <form onSubmit={save} noValidate style={{ display: "contents" }}>
+      <BackLink onClick={leave} />
       <div className="stack" style={{ gap: 10 }}>
         <h1>Tus tres deseos</h1>
         <span className="chip tone-brown" style={{ alignSelf: "flex-start" }}>Máximo {formatCop(cap)} COP cada uno</span>
@@ -80,6 +113,9 @@ function ListaForm({ me }: { me: Me }) {
         ))}
       </div>
 
+      {leaveWarning && hasBlank && (
+        <span className="error" role="status">Completa los tres deseos y guarda; si sales ahora, se queda tu lista anterior.</span>
+      )}
       {formError && <span role="alert" className="error">{formError}</span>}
 
       <button type="submit" className="btn btn-primary push" disabled={busy || locked}>
@@ -94,12 +130,12 @@ export default function Lista() {
   return (
     <main className="screen" style={{ gap: 18 }}>
       <Clouds />
-      <Link href="/grupo" className="back" aria-label="Volver al grupo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M15 18l-6-6 6-6" />
-        </svg>
-      </Link>
-      {me ? <ListaForm me={me} /> : error ? <span role="alert" className="error">{error}</span> : <p className="lede">Cargando…</p>}
+      {me ? <ListaForm me={me} /> : (
+        <>
+          <BackLink />
+          {error ? <span role="alert" className="error">{error}</span> : <p className="lede">Cargando…</p>}
+        </>
+      )}
     </main>
   );
 }

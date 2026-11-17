@@ -136,6 +136,10 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
         </Bubble>
       )}
 
+      {myRow?.ready && !status?.drawDone && (
+        <Link href="/lista" className="btn btn-link" style={{ alignSelf: "flex-start", padding: 0 }}>Editar mi lista</Link>
+      )}
+
       <div className="stack" style={{ gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15 }}>
           <span style={{ fontWeight: 700 }}>Listas completas</span>

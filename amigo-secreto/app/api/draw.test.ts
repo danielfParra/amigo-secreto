@@ -1,10 +1,9 @@
 import "@/tests/db-guard";
 import { describe, test, expect, beforeEach } from "vitest";
 import { resetDb } from "@/tests/reset-db";
-import { mkReq, createFamily, claim, claimAll, readyFamily, saveWishes, okWishes, type Family, type Person } from "@/tests/helpers";
+import { mkReq, createFamily, drawBody, claim, claimAll, readyFamily, saveWishes, okWishes, type Family, type Person } from "@/tests/helpers";
 import { sql } from "@/lib/db";
-import { buildDraw } from "@/lib/draw";
-import { openPayload } from "@/lib/crypto/hybrid";
+import { openPayload, payloadFits } from "@/lib/crypto/hybrid";
 import { GET as me } from "./me/route";
 import { GET as groupStatus } from "./group/route";
 import { GET as drawInputs } from "./draw/inputs/route";
@@ -19,8 +18,7 @@ const remove = (actor: Person, id: string) =>
   removeMember(mkReq("DELETE", `/api/members/${id}`, undefined, actor.cookie), { params: Promise.resolve({ id }) });
 
 async function doDraw(org: Person) {
-  const results = await buildDraw(await (await inputs(org)).json());
-  return postDraw(mkReq("POST", "/api/draw", { results }, org.cookie));
+  return postDraw(mkReq("POST", "/api/draw", await drawBody(await (await inputs(org)).json()), org.cookie));
 }
 
 beforeEach(async () => {
@@ -189,8 +187,9 @@ describe("draw", () => {
 
   test("a draw missing a giver, with an unknown giver, or with duplicates is rejected", async () => {
     const fam = await readyFamily(3);
-    const results = await buildDraw(await (await inputs(fam.org)).json());
-    const post = (r: unknown) => postDraw(mkReq("POST", "/api/draw", { results: r }, fam.org.cookie));
+    const full = await drawBody(await (await inputs(fam.org)).json());
+    const results = full.results;
+    const post = (r: unknown) => postDraw(mkReq("POST", "/api/draw", { ...full, results: r }, fam.org.cookie));
     expect((await post(results.slice(1))).status).toBe(422);
     expect((await post([...results.slice(1), { giverId: "00000000-0000-0000-0000-000000000000", sealed: "x" }])).status).toBe(422);
     expect((await post([...results.slice(1), results[1]])).status).toBe(422);
@@ -254,3 +253,23 @@ describe("removing a member", () => {
 });
 
 export type { Family };
+
+describe("wishes and the chat key", () => {
+  test("wishes that fit the encrypted snapshot only without the chat key are rejected, so the draw can always seal them", async () => {
+    const fam = await createFamily({ size: 2 });
+    const thread = { id: "0".repeat(32), key: "A".repeat(44) };
+    const mk = (n: number) => okWishes.map((w) => ({ ...w, title: "漢".repeat(120), link: "漢".repeat(n) }));
+    const snap = (n: number, withThread: boolean) => ({
+      receiverName: fam.org.name,
+      wishes: mk(n).map((w) => ({ title: w.title, price: 1000, link: w.link })),
+      ...(withThread ? { thread } : {}),
+    });
+    let n = 0;
+    while (n < 500 && payloadFits(snap(n + 1, false))) n++;
+    const edge = n; // the longest link that fits without the thread; the thread (~100 bytes) cannot also fit in the few bytes left
+    expect(payloadFits(snap(edge, false))).toBe(true);
+    expect(payloadFits(snap(edge, true))).toBe(false);
+    const r = await saveWishes(fam.org, mk(edge));
+    expect(r.status).toBe(422);
+  });
+});

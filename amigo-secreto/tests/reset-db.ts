@@ -3,5 +3,5 @@ import { sql } from "@/lib/db";
 
 /** Empties every table. Only ever runs against DATABASE_URL_TEST (see db-guard). */
 export async function resetDb(): Promise<void> {
-  await sql`TRUNCATE sessions, results, wishes, users, groups RESTART IDENTITY CASCADE`;
+  await sql`TRUNCATE sessions, results, inbox, chat_messages, chat_threads, wishes, users, groups RESTART IDENTITY CASCADE`;
 }

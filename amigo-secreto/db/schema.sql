@@ -65,3 +65,23 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
+
+-- Anonymous chat. The server never learns who is in a thread: it keeps only the hash of each thread id,
+-- the sealed record each receiver opens with their own key, and encrypted messages with no author column.
+CREATE TABLE IF NOT EXISTS inbox (
+  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  sealed text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_threads (
+  thread_hash text PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id bigserial PRIMARY KEY,
+  thread_hash text NOT NULL REFERENCES chat_threads(thread_hash) ON DELETE CASCADE,
+  sealed text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS chat_messages_thread_idx ON chat_messages(thread_hash, id);

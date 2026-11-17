@@ -1,9 +1,8 @@
 import "@/tests/db-guard";
 import { describe, test, expect, beforeAll } from "vitest";
 import { resetDb } from "@/tests/reset-db";
-import { IT, mkReq, sessionCookie, createFamily, claim, saveWishes, type Family, type Person } from "@/tests/helpers";
+import { IT, mkReq, sessionCookie, createFamily, drawBody, claim, saveWishes, type Family, type Person } from "@/tests/helpers";
 import { sql } from "@/lib/db";
-import { buildDraw } from "@/lib/draw";
 import { deriveSecrets } from "@/lib/crypto/kdf";
 import { unwrapPrivateKey } from "@/lib/crypto/keys";
 import { openPayload } from "@/lib/crypto/hybrid";
@@ -13,6 +12,9 @@ import { GET as me } from "@/app/api/me/route";
 import { GET as drawInputs } from "@/app/api/draw/inputs/route";
 import { POST as postDraw } from "@/app/api/draw/route";
 import { GET as getResult } from "@/app/api/result/route";
+import { GET as getInbox } from "@/app/api/inbox/route";
+import { POST as chatSend } from "@/app/api/chat/send/route";
+import { sealMessage, type Thread } from "@/lib/crypto/chat";
 
 // Distinctive fake names and PINs so a leak is easy to grep for in what the server stores.
 const NAMES = ["Zulema Gil", "Bartolomé Ruiz", "Ximena Soto", "Evaristo Mora", "Nicanora Vega"];
@@ -44,8 +46,7 @@ beforeAll(async () => {
     expect((await saveWishes(p, wishes)).status).toBe(200);
   }
   const inputs = await (await drawInputs(mkReq("GET", "/api/draw/inputs", undefined, fam.org.cookie))).json();
-  const results = await buildDraw(inputs);
-  expect((await postDraw(mkReq("POST", "/api/draw", { results }, fam.org.cookie))).status).toBe(200);
+  expect((await postDraw(mkReq("POST", "/api/draw", await drawBody(inputs), fam.org.cookie))).status).toBe(200);
 });
 
 describe("end-to-end privacy", () => {
@@ -105,5 +106,32 @@ describe("end-to-end privacy", () => {
   test("the database holds no email anywhere", async () => {
     const cols = await sql`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public'`;
     expect(cols.map((c) => c.column_name)).not.toContain("email");
+  });
+
+  test("the chat tables hold no name, wish, thread id or message text, and inbox records match result lengths", async () => {
+    const giver = fam.people[1];
+    const { cookie, privateKey } = await signInAndUnlock(giver);
+    const { sealed } = await (await getResult(mkReq("GET", "/api/result", undefined, cookie))).json();
+    const { thread } = await openPayload<{ thread: Thread }>(sealed, privateKey);
+    const text = "mensaje-muy-reconocible-123";
+    expect((await chatSend(mkReq("POST", "/api/chat/send", { threadId: thread.id, sealed: await sealMessage(thread.key, "g", text) }))).status).toBe(201);
+    const inbox = await getInbox(mkReq("GET", "/api/inbox", undefined, cookie));
+    expect(inbox.status).toBe(200);
+
+    const dump = JSON.stringify([await sql`SELECT * FROM inbox`, await sql`SELECT * FROM chat_threads`, await sql`SELECT * FROM chat_messages`]);
+    for (const n of NAMES) expect(dump).not.toContain(n);
+    expect(dump).not.toContain("Regalo");
+    expect(dump).not.toContain(text);
+    expect(dump).not.toContain(thread.id);
+    expect(dump).not.toContain(thread.key);
+
+    const lens = await sql`SELECT length(sealed) AS len FROM results UNION ALL SELECT length(sealed) FROM inbox`;
+    expect(lens).toHaveLength(NAMES.length * 2);
+    expect(new Set(lens.map((r) => r.len)).size).toBe(1);
+  });
+
+  test("a chat message row has nothing that says who wrote it", async () => {
+    const cols = (await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'chat_messages'`).map((c) => c.column_name);
+    expect(cols.some((c) => /user|author|giver|receiver|sender/i.test(String(c)))).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { POST as createGroup } from "@/app/api/groups/route";
 import { GET as groupInfo } from "@/app/api/groups/[code]/route";
 import { POST as join } from "@/app/api/join/route";
 import { PUT as putWishes } from "@/app/api/wishes/route";
+import { buildDrawWithChat, type DrawMember } from "@/lib/draw";
 
 export const IT = 1000; // low PBKDF2 iterations for fast tests
 
@@ -123,3 +124,9 @@ export async function readyFamily(size = 3): Promise<Family> {
   }
   return fam;
 }
+
+/** The body the organizer's browser posts to /api/draw: results, inbox records and thread hashes. */
+export const drawBody = async (members: DrawMember[]) => {
+  const { results, inbox, threads } = await buildDrawWithChat(members);
+  return { results, inbox, threads };
+};

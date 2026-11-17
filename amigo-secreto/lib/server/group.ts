@@ -41,9 +41,11 @@ export async function getGroupStatus(groupId: string): Promise<GroupStatus> {
   };
 }
 
-/** Deletes every draw result of the group and reopens it. */
+/** Deletes every draw result, chat record and chat message of the group and reopens it, so a new draw never inherits old chats. */
 export async function resetGroupDraw(groupId: string): Promise<void> {
   await sql`DELETE FROM results WHERE giver_id IN (SELECT id FROM users WHERE group_id = ${groupId})`;
+  await sql`DELETE FROM inbox WHERE user_id IN (SELECT id FROM users WHERE group_id = ${groupId})`;
+  await sql`DELETE FROM chat_threads`; // one family group per app; messages go with their thread
   await sql`UPDATE groups SET draw_done = false WHERE id = ${groupId}`;
 }
 

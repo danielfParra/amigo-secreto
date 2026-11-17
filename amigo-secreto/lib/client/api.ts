@@ -3,14 +3,19 @@ export type ApiResult<T = unknown> =
   | { ok: false; status: number; error: string; field?: string };
 
 /** fetch wrapper for our own API: JSON in, JSON out, never throws, errors are ready-to-show Spanish text. */
-export async function apiFetch<T = unknown>(path: string, method = "GET", body?: unknown): Promise<ApiResult<T>> {
+export async function apiFetch<T = unknown>(
+  path: string,
+  method = "GET",
+  body?: unknown,
+  opts: { anonymous?: boolean } = {},
+): Promise<ApiResult<T>> {
   let res: Response;
   try {
     res = await fetch(path, {
       method,
       headers: body === undefined ? undefined : { "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
-      credentials: "same-origin",
+      credentials: opts.anonymous ? "omit" : "same-origin", // chat calls omit the cookie so nothing ties a person to a thread
     });
   } catch {
     return { ok: false, status: 0, error: "Sin conexión. Revisa tu internet e intenta de nuevo." };

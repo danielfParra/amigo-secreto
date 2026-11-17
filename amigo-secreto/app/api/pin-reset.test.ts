@@ -1,9 +1,8 @@
 import "@/tests/db-guard";
 import { describe, test, expect, beforeEach } from "vitest";
 import { resetDb } from "@/tests/reset-db";
-import { mkReq, sessionCookie, makeCreds, secretFor, createFamily, claimAll, readyFamily, saveWishes, type Person } from "@/tests/helpers";
+import { mkReq, sessionCookie, makeCreds, secretFor, createFamily, drawBody, claimAll, readyFamily, saveWishes, type Person } from "@/tests/helpers";
 import { sql } from "@/lib/db";
-import { buildDraw } from "@/lib/draw";
 import { openPayload } from "@/lib/crypto/hybrid";
 import { POST as login } from "./login/route";
 import { GET as getSalt } from "./salt/route";
@@ -177,7 +176,7 @@ describe("the draw is blocked while a reset is open", () => {
     const done = await finishReset(mkReq("POST", "/api/pin-reset", c.body));
     const inputs = await (await drawInputs(mkReq("GET", "/api/draw/inputs", undefined, fam.org.cookie))).json();
     expect(inputs.find((i: { id: string }) => i.id === fam.people[1].id).publicKey).toBe(c.fields.publicKey);
-    expect((await postDraw(mkReq("POST", "/api/draw", { results: await buildDraw(inputs) }, fam.org.cookie))).status).toBe(200);
+    expect((await postDraw(mkReq("POST", "/api/draw", await drawBody(inputs), fam.org.cookie))).status).toBe(200);
     const { sealed } = await (await getResult(mkReq("GET", "/api/result", undefined, sessionCookie(done)))).json();
     await expect(openPayload(sealed, c.privateKey)).resolves.toBeDefined();
   });
@@ -187,7 +186,7 @@ describe("a reset after the draw", () => {
   test("reopens the draw because the person's result cannot be recovered; wishes are kept", async () => {
     const fam = await readyFamily(2);
     const inputs = await (await drawInputs(mkReq("GET", "/api/draw/inputs", undefined, fam.org.cookie))).json();
-    expect((await postDraw(mkReq("POST", "/api/draw", { results: await buildDraw(inputs) }, fam.org.cookie))).status).toBe(200);
+    expect((await postDraw(mkReq("POST", "/api/draw", await drawBody(inputs), fam.org.cookie))).status).toBe(200);
     expect((await getResult(mkReq("GET", "/api/result", undefined, fam.people[1].cookie))).status).toBe(200);
 
     expect((await reset(fam.org, fam.people[1].id)).status).toBe(200);

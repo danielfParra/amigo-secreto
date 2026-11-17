@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { derangement, buildDraw, type Wish } from "./draw";
+import { derangement, buildDraw, buildDrawWithChat, type Wish } from "./draw";
 import { generateKeyPair, exportPublicKey } from "./crypto/keys";
 import { openPayload, PAD_SIZE } from "./crypto/hybrid";
 
@@ -71,5 +71,62 @@ describe("buildDraw", () => {
     const sealedLens = new Set(out.map((o) => o.sealed.length));
     expect(sealedLens.size).toBe(1);
     expect(PAD_SIZE).toBe(4096);
+  });
+});
+
+describe("buildDrawWithChat", () => {
+  async function setup(n: number) {
+    const pairs = await Promise.all(Array.from({ length: n }, () => generateKeyPair()));
+    const members = await Promise.all(
+      pairs.map(async (kp, i) => ({ id: `id-${i}`, name: `P${i}`, publicKey: await exportPublicKey(kp.publicKey), wishes: wish(i) })),
+    );
+    return { pairs, members, out: await buildDrawWithChat(members) };
+  }
+  type Thread = { id: string; key: string };
+
+  test("the giver and the receiver of a pair open the same thread, and nobody else shares it", async () => {
+    const { pairs, members, out } = await setup(6);
+    const giverThread = new Map<string, Thread>();
+    for (let i = 0; i < members.length; i++) {
+      const r = out.results.find((x) => x.giverId === members[i].id)!;
+      const p = await openPayload<{ receiverName: string; thread: Thread }>(r.sealed, pairs[i].privateKey);
+      giverThread.set(p.receiverName, p.thread);
+    }
+    for (let i = 0; i < members.length; i++) {
+      const inbox = out.inbox.find((x) => x.userId === members[i].id)!;
+      const p = await openPayload<{ thread: Thread }>(inbox.sealed, pairs[i].privateKey);
+      expect(p.thread).toEqual(giverThread.get(members[i].name));
+    }
+    expect(new Set([...giverThread.values()].map((t) => t.id)).size).toBe(members.length);
+  });
+
+  test("the inbox record does not say who the giver is", async () => {
+    const { pairs, members, out } = await setup(4);
+    const p = await openPayload<Record<string, unknown>>(out.inbox[0].sealed, pairs[members.findIndex((m) => m.id === out.inbox[0].userId)].privateKey);
+    expect(Object.keys(p)).toEqual(["thread"]);
+  });
+
+  test("results, inbox records and thread hashes: one per person, all results and inbox records the same length", async () => {
+    const { members, out } = await setup(5);
+    expect(out.results).toHaveLength(5);
+    expect(out.inbox).toHaveLength(5);
+    expect(out.threads).toHaveLength(5);
+    expect(new Set([...out.results, ...out.inbox].map((o) => o.sealed.length)).size).toBe(1);
+    expect(new Set(out.inbox.map((o) => o.userId))).toEqual(new Set(members.map((m) => m.id)));
+    for (const h of out.threads) expect(h).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test("the order of inbox records and thread hashes carries no information about who is paired with whom", async () => {
+    const { members, out } = await setup(8);
+    // results[i] is the giver members[i]; if inbox[i] were that giver's receiver, zipping the two would reveal the whole pairing.
+    expect(out.inbox.map((r) => r.userId)).toEqual(members.map((m) => m.id).sort());
+    expect(out.threads).toEqual([...out.threads].sort());
+  });
+
+  test("buildDraw still returns only the results", async () => {
+    const { members } = await setup(3);
+    const out = await buildDraw(members);
+    expect(out).toHaveLength(3);
+    expect(Object.keys(out[0]).sort()).toEqual(["giverId", "sealed"]);
   });
 });

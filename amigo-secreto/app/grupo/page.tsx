@@ -7,12 +7,14 @@ import { useRouter } from "next/navigation";
 import Bubble from "@/components/Bubble";
 import Button from "@/components/Button";
 import MemberRow from "@/components/MemberRow";
+import { useUnread } from "@/lib/client/useUnread";
+import { clearChatKeys } from "@/lib/client/chat";
 import ProgressBar from "@/components/ProgressBar";
 import { apiFetch, type ApiResult } from "@/lib/client/api";
 import { useMe, type Me } from "@/lib/client/useMe";
 import { formatCop } from "@/lib/cop";
 import { formatEventDate } from "@/lib/dates";
-import { buildDraw, type DrawMember } from "@/lib/draw";
+import { buildDrawWithChat, type DrawMember } from "@/lib/draw";
 
 type Status = {
   members: { id: string; name: string; claimed: boolean; ready: boolean; resetPending: boolean }[];
@@ -86,8 +88,8 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
       const inputs = await apiFetch<DrawMember[]>("/api/draw/inputs");
       if (!inputs.ok) return inputs;
       // The pairing is made and encrypted here, in this browser; the server only stores the sealed results.
-      const results = await buildDraw(inputs.data);
-      return apiFetch("/api/draw", "POST", { results });
+      const { results, inbox, threads } = await buildDrawWithChat(inputs.data);
+      return apiFetch("/api/draw", "POST", { results, inbox, threads });
     }, "¡Sorteo hecho! Cada quien ya puede ver a quién le regala.");
   }
 
@@ -99,10 +101,12 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
   }
 
   async function logout() {
+    clearChatKeys();
     await apiFetch("/api/logout", "POST", {});
     router.replace("/");
   }
 
+  const unread = useUnread(me.user.id, Boolean(status?.drawDone));
   const total = status?.size ?? 0;
   const waiting = status?.members.filter((m) => m.resetPending).map((m) => m.name) ?? [];
   const notJoined = status?.members.filter((m) => !m.claimed).map((m) => m.name) ?? [];
@@ -181,6 +185,10 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
         {status?.drawDone ? (
           <>
             <Button href="/privacidad">Ver mi amigo secreto</Button>
+            <Link href="/chat" className="btn btn-ghost" style={{ position: "relative" }}>
+              Chat anónimo
+              {(unread.to || unread.from) && <span className="dot" aria-label="Mensaje nuevo" style={{ top: 12, right: 18 }} />}
+            </Link>
             {isOrganizer &&
               (confirmRedo ? (
                 <div className="stack" style={{ gap: 8 }}>

@@ -37,9 +37,11 @@ export async function PUT(req: NextRequest) {
     }
     const wishes = body.wishes.map((raw, i) => parseWish(raw, i, g.price_cap as number));
 
-    // The draw seals {receiverName, wishes} into one fixed-size block: refuse anything that would not fit.
+    // The draw seals {receiverName, wishes, thread} into one fixed-size block: refuse anything that would not fit,
+    // counting the chat key (a 32-hex id and a 44-character key) the draw adds.
     const snapshot = {
       receiverName: s.name,
+      thread: { id: "0".repeat(32), key: "A".repeat(44) },
       wishes: wishes.map((w) => ({ title: w.title, price: w.price, ...(w.link ? { link: w.link } : {}) })),
     };
     if (!payloadFits(snapshot)) {

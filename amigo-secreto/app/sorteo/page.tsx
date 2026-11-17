@@ -97,7 +97,8 @@ function Reveal({ me }: { me: Me }) {
           })}
         </ul>
         <Bubble tone="green" style={{ alignSelf: "flex-end", maxWidth: 250 }}>Shh, solo tú puedes ver esto</Bubble>
-        <button type="button" className="btn btn-ghost push" onClick={hide}>Ocultar</button>
+        <Link href="/chat" className="btn btn-primary push">Escribirle de forma anónima</Link>
+        <button type="button" className="btn btn-ghost" onClick={hide}>Ocultar</button>
       </div>
     );
   }

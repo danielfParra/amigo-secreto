@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import { UUID, getGroupStatus, resetGroupDraw } from "@/lib/server/group";
 import { HttpError, handle, isUniqueViolation, json, readJson } from "@/lib/server/http";
 import { requireOrganizer } from "@/lib/server/session";
+import { THREAD_HASH } from "@/lib/server/chat";
 
 const SEALED_MAX = 20_000;
 
@@ -34,13 +35,41 @@ export async function POST(req: NextRequest) {
       throw new HttpError(422, "El sorteo debe incluir a cada persona exactamente una vez");
     }
 
+    // Chat records: one sealed inbox entry per receiver and one thread hash per pair; none says who is paired with whom.
+    const inbox = body.inbox;
+    const threads = body.threads;
+    if (!Array.isArray(inbox) || inbox.length !== status.members.length || !Array.isArray(threads) || threads.length !== status.members.length) {
+      throw new HttpError(422, "El sorteo debe incluir los chats");
+    }
+    const inboxIds: string[] = [];
+    const inboxSealed: string[] = [];
+    for (const r of inbox) {
+      const row = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
+      if (typeof row.userId !== "string" || !UUID.test(row.userId) || typeof row.sealed !== "string" || !row.sealed || row.sealed.length > SEALED_MAX) {
+        throw new HttpError(422, "El sorteo no es válido");
+      }
+      inboxIds.push(row.userId.toLowerCase());
+      inboxSealed.push(row.sealed);
+    }
+    if (new Set(inboxIds).size !== inboxIds.length || inboxIds.some((id) => !members.has(id))) {
+      throw new HttpError(422, "El sorteo debe incluir a cada persona exactamente una vez");
+    }
+    const hashes = threads as unknown[];
+    if (hashes.some((h) => typeof h !== "string" || !THREAD_HASH.test(h)) || new Set(hashes).size !== hashes.length) {
+      throw new HttpError(422, "El sorteo no es válido");
+    }
+
     try {
       await sql.query(
         `WITH ins AS (
            INSERT INTO results (giver_id, sealed) SELECT * FROM unnest($1::uuid[], $2::text[]) RETURNING 1
+         ), inb AS (
+           INSERT INTO inbox (user_id, sealed) SELECT * FROM unnest($4::uuid[], $5::text[]) RETURNING 1
+         ), thr AS (
+           INSERT INTO chat_threads (thread_hash) SELECT unnest($6::text[]) RETURNING 1
          )
          UPDATE groups SET draw_done = true WHERE id = $3 AND draw_done = false`,
-        [ids, sealed, s.groupId],
+        [ids, sealed, s.groupId, inboxIds, inboxSealed, hashes],
       );
     } catch (e) {
       if (isUniqueViolation(e)) throw new HttpError(409, "El sorteo ya se hizo");

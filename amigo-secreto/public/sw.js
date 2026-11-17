@@ -1,5 +1,5 @@
 // Minimal service worker: cache-first for static assets, network-only for the API and everything dynamic.
-const CACHE = "amigo-secreto-v3";
+const CACHE = "amigo-secreto-v4";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/icons/icon-192.png"])).then(() => self.skipWaiting()));

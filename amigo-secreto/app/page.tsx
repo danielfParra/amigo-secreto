@@ -1,13 +1,11 @@
 import Button from "@/components/Button";
 import Clouds from "@/components/Clouds";
-import FirstVisit from "@/components/FirstVisit";
 import { Candy, Gift, Pine, Snowflake, Star, Tree } from "@/components/Icons";
 
 export default function Inicio() {
   return (
     <main className="screen screen-hero" style={{ alignItems: "center", paddingTop: "calc(44px + env(safe-area-inset-top))" }}>
       <Clouds variant="inicio" />
-      <FirstVisit />
       <h1 className="hero-title anim-fadeup">
         Celebremos <em>Navidad</em> juntos
       </h1>

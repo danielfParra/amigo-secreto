@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import Clouds from "@/components/Clouds";
 import { markOnboarded } from "@/components/FirstVisit";
 import { Bell, Gift, Snowflake, Star } from "@/components/Icons";
@@ -78,6 +79,38 @@ const SLIDES = [
     ),
   },
   {
+    title: "Así funciona el sorteo",
+    text: "Cuando todos tengan sus tres deseos, quien organiza hace el sorteo desde el grupo. Cada quien regala a una persona y recibe de otra, nunca de sí mismo. Tu resultado queda sellado: solo tú lo abres, con tu PIN. Si alguien entra o sale, se repite.",
+    art: (
+      <div className="ob-draw" aria-hidden="true">
+        <svg className="ob-ring" viewBox="0 0 200 200">
+          <defs>
+            <marker id="ob-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M0 0L10 5L0 10z" style={{ fill: "var(--red)" }} />
+            </marker>
+          </defs>
+          {[
+            "M132.9 38.2A70 70 0 0 1 161.8 67.1",
+            "M161.8 132.9A70 70 0 0 1 132.9 161.8",
+            "M67.1 161.8A70 70 0 0 1 38.2 132.9",
+            "M38.2 67.1A70 70 0 0 1 67.1 38.2",
+          ].map((d, n) => (
+            <path key={n} d={d} className="ob-arc" markerEnd="url(#ob-arrow)" style={{ "--n": n } as React.CSSProperties} />
+          ))}
+        </svg>
+        {[
+          { l: "A", x: 78, y: 8, bg: "var(--red)", c: "#fff" },
+          { l: "L", x: 148, y: 78, bg: "var(--pine)", c: "#fff" },
+          { l: "M", x: 78, y: 148, bg: "var(--gold)", c: "var(--ink)" },
+          { l: "P", x: 8, y: 78, bg: "var(--ink)", c: "#fff" },
+        ].map((p, n) => (
+          <span key={p.l} className="ob-av" style={{ left: p.x, top: p.y, background: p.bg, color: p.c, "--n": n } as React.CSSProperties}>{p.l}</span>
+        ))}
+        <div className="ob-draw-gift"><Gift size={44} /></div>
+      </div>
+    ),
+  },
+  {
     title: "Todo va cifrado",
     text: "Tu resultado, a quién le regalas, se guarda cifrado. Solo tú lo abres, con tu PIN; ni el servidor puede leerlo. Los chats también van cifrados. Guarda bien tu PIN.",
     art: (
@@ -105,11 +138,30 @@ const SLIDES = [
   },
 ];
 
-export default function Bienvenida() {
+/**
+ * The page to return to after the tour, only if it is a path on this same site (parsed, not string-matched,
+ * so `//evil.com`, `/\evil.com`, `javascript:` and similar never pass). The home page counts as "no return":
+ * newcomers there get Empezar / Ya tengo cuenta.
+ */
+function safeLocal(raw: string | null): string | null {
+  if (!raw || /[\u0000-\u001f\u007f\\]/.test(raw)) return null;
+  try {
+    const base = "http://same-site.invalid"; // no window here: this also runs while the page is rendered on the server
+    const u = new URL(raw, base);
+    if (u.origin !== base) return null;
+    if (u.pathname === "/" || u.pathname.startsWith("/bienvenida")) return null;
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return null;
+  }
+}
+
+function Tour() {
   const [splash, setSplash] = useState(true);
   const [i, setI] = useState(0);
   const [touchX, setTouchX] = useState<number | null>(null);
   const last = i === SLIDES.length - 1;
+  const volver = safeLocal(useSearchParams().get("volver"));
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -145,7 +197,7 @@ export default function Bienvenida() {
 
       <div className="ob-top">
         <div className="ob-guide"><Regalito /></div>
-        <Link href="/" className="ob-skip" onClick={done}>Saltar</Link>
+        <Link href={volver ?? "/"} className="ob-skip" onClick={done}>Saltar</Link>
       </div>
 
       <div className="ob-viewport">
@@ -168,8 +220,14 @@ export default function Bienvenida() {
 
       {last ? (
         <div className="stack" style={{ alignItems: "center", gap: 6 }}>
-          <Link href="/unirse" className="btn btn-primary" onClick={done}>Empezar</Link>
-          <Link href="/entrar" className="btn btn-link" onClick={done}>Ya tengo cuenta</Link>
+          {volver ? (
+            <Link href={volver} className="btn btn-primary" onClick={done}>Continuar</Link>
+          ) : (
+            <>
+              <Link href="/unirse" className="btn btn-primary" onClick={done}>Empezar</Link>
+              <Link href="/entrar" className="btn btn-link" onClick={done}>Ya tengo cuenta</Link>
+            </>
+          )}
         </div>
       ) : (
         <div style={{ display: "flex", gap: 10 }}>
@@ -178,5 +236,13 @@ export default function Bienvenida() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function Bienvenida() {
+  return (
+    <Suspense fallback={null}>
+      <Tour />
+    </Suspense>
   );
 }

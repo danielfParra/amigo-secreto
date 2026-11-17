@@ -482,8 +482,8 @@ h2 {
 .flake {
   position: absolute;
   top: -30px;
-  opacity: 0.95;
-  filter: drop-shadow(0 0 1.5px rgb(10 77 49 / 0.85));
+  opacity: 0.45;
+  filter: drop-shadow(0 0 1px rgb(10 77 49 / 0.35));
   animation: snowfall linear infinite;
 }
 @keyframes snowfall {
@@ -795,3 +795,14 @@ h2 {
   0%, 100% { transform: scale(1) rotate(0); opacity: 1; }
   50% { transform: scale(0.8) rotate(14deg); opacity: 0.7; }
 }
+
+/* Welcome tour: "Así funciona el sorteo" slide (.ob-draw). Decorative only; the
+   text carries the meaning. Animates opacity/transform only; the global
+   reduced-motion rule shortens these, and both fill modes land on the final state. */
+.ob-draw { position: relative; width: 200px; height: 200px; margin: 0 auto; }
+.ob-ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ob-arc { fill: none; stroke: var(--red); stroke-width: 3; stroke-linecap: round; opacity: 0; animation: ob-arc-in 0.4s ease both; animation-delay: calc(var(--n) * 0.25s + 0.45s); }
+.ob-av { position: absolute; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 17px; box-shadow: 0 3px 0 rgb(18 38 28 / 0.15); animation: ob-av-in 0.5s var(--ease-out) both; animation-delay: calc(var(--n) * 0.12s); }
+.ob-draw-gift { position: absolute; left: 50%; top: 50%; margin: -22px 0 0 -22px; animation: ob-shuffle 2.6s ease-in-out infinite; }
+@keyframes ob-arc-in { to { opacity: 1; } }
+@keyframes ob-av-in { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }

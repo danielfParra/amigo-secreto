@@ -1,8 +1,8 @@
 // Falling snowflakes over every screen. Fixed, non-interactive, transform-only animation; hidden when the user prefers reduced motion.
-const FLAKES = Array.from({ length: 14 }, (_, i) => ({
+const FLAKES = Array.from({ length: 6 }, (_, i) => ({
   left: (i * 37 + 11) % 100,
   size: 12 + ((i * 5) % 14),
-  dur: 10 + ((i * 3) % 9),
+  dur: 13 + ((i * 3) % 9),
   delay: -((i * 2.3) % 14),
   sway: 12 + ((i * 7) % 22),
   spin: i % 2 ? 1 : -1,
@@ -11,10 +11,8 @@ const FLAKES = Array.from({ length: 14 }, (_, i) => ({
 const ARM = "M12 2v20M12 6l-3-3M12 6l3-3M12 18l-3 3M12 18l3 3";
 
 const STARS = [
-  { left: 18, size: 14, dur: 15, delay: -4, sway: 18, spin: 1 },
-  { left: 47, size: 17, dur: 19, delay: -11, sway: -22, spin: -1 },
-  { left: 71, size: 13, dur: 16, delay: -7, sway: 16, spin: 1 },
-  { left: 90, size: 16, dur: 21, delay: -2, sway: -14, spin: -1 },
+  { left: 30, size: 14, dur: 18, delay: -4, sway: 18, spin: 1 },
+  { left: 72, size: 16, dur: 22, delay: -11, sway: -14, spin: -1 },
 ];
 const STAR_PATH = "M24 3l5.6 12.2 13.3 1.5-9.9 9 2.8 13.1L24 32l-11.8 6.8 2.8-13.1-9.9-9 13.3-1.5z";
 

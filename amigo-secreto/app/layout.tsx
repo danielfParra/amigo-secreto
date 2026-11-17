@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Public_Sans } from "next/font/google";
+import FirstVisit from "@/components/FirstVisit";
 import RegisterSW from "@/components/RegisterSW";
 import Snow from "@/components/Snow";
 import "./globals.css";
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <div hidden dangerouslySetInnerHTML={{ __html: CONTRACT }} />
         {children}
+        <FirstVisit />
         <Snow />
         <RegisterSW />
       </body>

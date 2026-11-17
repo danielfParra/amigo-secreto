@@ -13,7 +13,7 @@ import { openPayload } from "@/lib/crypto/hybrid";
 import { formatCop } from "@/lib/cop";
 import { safeHref } from "@/lib/links";
 
-type Result = { receiverName: string; wishes: { title: string; price: number; link?: string }[] };
+type Result = { receiverName: string; wishes: { title: string; price: number; link?: string; details?: string }[] };
 
 const TONES = ["tone-red", "tone-green", "tone-brown"];
 
@@ -86,6 +86,7 @@ function Reveal({ me }: { me: Me }) {
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontSize: 16, fontWeight: 700, overflowWrap: "anywhere" }}>{w.title}</span>
                   <span style={{ fontSize: 14, color: "var(--muted)" }}>{formatCop(w.price)}</span>
+                  {w.details && <span style={{ fontSize: 14, overflowWrap: "anywhere" }}>{w.details}</span>}
                 </div>
                 {href && (
                   <a href={href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, fontWeight: 700, minHeight: 44, display: "flex", alignItems: "center", padding: "0 4px", textDecoration: "underline" }}>

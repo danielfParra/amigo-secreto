@@ -7,8 +7,9 @@ import { requireSession } from "@/lib/server/session";
 
 const TITLE_MAX = 120;
 const LINK_MAX = 500;
+const DETAILS_MAX = 200;
 
-type Parsed = { title: string; price: number; link: string | null };
+type Parsed = { title: string; price: number; link: string | null; details: string | null };
 
 function parseWish(raw: unknown, i: number, cap: number): Parsed {
   const w = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -22,7 +23,9 @@ function parseWish(raw: unknown, i: number, cap: number): Parsed {
 
   const link = typeof w.link === "string" ? w.link.trim() : "";
   if (link.length > LINK_MAX) throw new HttpError(422, "El enlace es demasiado largo", { field: `wishes.${i}.link` });
-  return { title, price, link: link || null };
+  const details = typeof w.details === "string" ? w.details.trim() : "";
+  if (details.length > DETAILS_MAX) throw new HttpError(422, "Los detalles son demasiado largos", { field: `wishes.${i}.details` });
+  return { title, price, link: link || null, details: details || null };
 }
 
 export async function PUT(req: NextRequest) {
@@ -42,17 +45,17 @@ export async function PUT(req: NextRequest) {
     const snapshot = {
       receiverName: s.name,
       thread: { id: "0".repeat(32), key: "A".repeat(44) },
-      wishes: wishes.map((w) => ({ title: w.title, price: w.price, ...(w.link ? { link: w.link } : {}) })),
+      wishes: wishes.map((w) => ({ title: w.title, price: w.price, ...(w.link ? { link: w.link } : {}), ...(w.details ? { details: w.details } : {}) })),
     };
     if (!payloadFits(snapshot)) {
       throw new HttpError(422, "Tus deseos son demasiado largos; acorta los nombres o los enlaces", { field: "wishes" });
     }
 
     await sql.query(
-      `INSERT INTO wishes (user_id, position, title, price, link)
-       SELECT $1::uuid, x.p, x.t, x.pr, x.l FROM unnest($2::int[], $3::text[], $4::int[], $5::text[]) AS x(p, t, pr, l)
-       ON CONFLICT (user_id, position) DO UPDATE SET title = EXCLUDED.title, price = EXCLUDED.price, link = EXCLUDED.link`,
-      [s.userId, [1, 2, 3], wishes.map((w) => w.title), wishes.map((w) => w.price), wishes.map((w) => w.link)],
+      `INSERT INTO wishes (user_id, position, title, price, link, details)
+       SELECT $1::uuid, x.p, x.t, x.pr, x.l, x.d FROM unnest($2::int[], $3::text[], $4::int[], $5::text[], $6::text[]) AS x(p, t, pr, l, d)
+       ON CONFLICT (user_id, position) DO UPDATE SET title = EXCLUDED.title, price = EXCLUDED.price, link = EXCLUDED.link, details = EXCLUDED.details`,
+      [s.userId, [1, 2, 3], wishes.map((w) => w.title), wishes.map((w) => w.price), wishes.map((w) => w.link), wishes.map((w) => w.details)],
     );
     return json({ ok: true });
   });

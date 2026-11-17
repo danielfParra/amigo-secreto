@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     const users = await sql`SELECT id, name, public_key FROM users WHERE group_id = ${s.groupId} ORDER BY created_at`;
     const wishes = await sql`
-      SELECT w.user_id, w.title, w.price, w.link FROM wishes w
+      SELECT w.user_id, w.title, w.price, w.link, w.details FROM wishes w
       JOIN users u ON u.id = w.user_id WHERE u.group_id = ${s.groupId} ORDER BY w.user_id, w.position`;
     return json(
       users.map((u) => ({
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
         publicKey: u.public_key,
         wishes: wishes
           .filter((w) => w.user_id === u.id)
-          .map((w) => ({ title: w.title, price: w.price, ...(w.link ? { link: w.link } : {}) })),
+          .map((w) => ({ title: w.title, price: w.price, ...(w.link ? { link: w.link } : {}), ...(w.details ? { details: w.details } : {}) })),
       })),
     );
   });

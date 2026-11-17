@@ -1,9 +1,9 @@
-export type WishDraft = { title: string; price: string; link: string };
-export type WishErrors = Partial<Record<"title" | "price" | "link", string>>;
+export type WishDraft = { title: string; price: string; link: string; details: string };
+export type WishErrors = Partial<Record<"title" | "price" | "link" | "details", string>>;
 
 const BADGE = ["tone-red", "tone-green", "tone-brown"];
 
-/** One of the three wish cards from the sketch: title, price and an optional link. */
+/** One of the three wish cards from the sketch: title, price, an optional link and optional details. */
 export default function WishCard({
   index,
   value,
@@ -54,8 +54,12 @@ export default function WishCard({
           value={value.link} disabled={disabled} aria-invalid={errors.link ? true : undefined}
           onChange={(e) => onChange({ link: e.target.value })} />
       </div>
-      {(errors.title || errors.price || errors.link) && (
-        <span role="alert" className="error">{errors.price ?? errors.title ?? errors.link}</span>
+      <label htmlFor={`d${n}`} className="sr-only">Más detalles del regalo {n}</label>
+      <input id={`d${n}`} type="text" maxLength={200} placeholder="Más detalles (opcional): talla, color, marca…" style={field({ fontSize: 15, ...bad(errors.details) })}
+        value={value.details} disabled={disabled} aria-invalid={errors.details ? true : undefined}
+        onChange={(e) => onChange({ details: e.target.value })} />
+      {(errors.title || errors.price || errors.link || errors.details) && (
+        <span role="alert" className="error">{errors.price ?? errors.title ?? errors.link ?? errors.details}</span>
       )}
     </div>
   );

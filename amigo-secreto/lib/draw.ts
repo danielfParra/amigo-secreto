@@ -2,7 +2,7 @@ import { importPublicKey } from "./crypto/keys";
 import { sealPayload } from "./crypto/hybrid";
 import { newThread, threadHash } from "./crypto/chat";
 
-export type Wish = { title: string; price: number; link?: string };
+export type Wish = { title: string; price: number; link?: string; details?: string };
 export type DrawMember = { id: string; name: string; publicKey: string; wishes: Wish[] };
 
 function randomInt(max: number): number {

@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/client/api";
 import { useMe, type Me } from "@/lib/client/useMe";
 import { formatCop, parseCop } from "@/lib/cop";
 
-const EMPTY: WishDraft = { title: "", price: "", link: "" };
+const EMPTY: WishDraft = { title: "", price: "", link: "", details: "" };
 
 function ListaForm({ me }: { me: Me }) {
   const router = useRouter();
@@ -18,7 +18,7 @@ function ListaForm({ me }: { me: Me }) {
   const [wishes, setWishes] = useState<WishDraft[]>(() =>
     [0, 1, 2].map((i) => {
       const w = me.wishes[i];
-      return w ? { title: w.title, price: formatCop(w.price), link: w.link ?? "" } : EMPTY;
+      return w ? { title: w.title, price: formatCop(w.price), link: w.link ?? "", details: w.details ?? "" } : EMPTY;
     }),
   );
   const [serverErrors, setServerErrors] = useState<WishErrors[]>([{}, {}, {}]);
@@ -54,13 +54,13 @@ function ListaForm({ me }: { me: Me }) {
     if (liveErrors.some((x) => x.price)) return;
     setBusy(true);
     const r = await apiFetch("/api/wishes", "PUT", {
-      wishes: wishes.map((w) => ({ title: w.title, price: w.price, link: w.link })),
+      wishes: wishes.map((w) => ({ title: w.title, price: w.price, link: w.link, details: w.details })),
     });
     if (r.ok) {
       router.push("/grupo");
       return;
     }
-    const m = r.field?.match(/^wishes\.(\d)\.(title|price|link)$/);
+    const m = r.field?.match(/^wishes\.(\d)\.(title|price|link|details)$/);
     if (m) setServerErrors((es) => es.map((x, j) => (j === Number(m[1]) ? { [m[2]]: r.error } : x)));
     else setFormError(r.error);
     setBusy(false);

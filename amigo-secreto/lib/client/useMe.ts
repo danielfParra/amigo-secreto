@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, type ApiResult } from "./api";
 
-export type Wish = { title: string; price: number; link: string | null };
+export type Wish = { title: string; price: number; link: string | null; details: string | null };
 
 export type Me = {
   user: { id: string; name: string; isOrganizer: boolean };

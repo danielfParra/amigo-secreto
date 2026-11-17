@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       FROM users u JOIN groups g ON g.id = u.group_id
       WHERE u.id = ${s.userId}`;
     const r = rows[0];
-    const wishes = await sql`SELECT title, price, link FROM wishes WHERE user_id = ${s.userId} ORDER BY position`;
+    const wishes = await sql`SELECT title, price, link, details FROM wishes WHERE user_id = ${s.userId} ORDER BY position`;
     return json({
       user: { id: r.id, name: r.name, isOrganizer: r.is_organizer },
       group: {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       salt: r.salt,
       wrappedPrivateKey: r.wrapped_private_key,
       wrapIv: r.wrap_iv,
-      wishes: wishes.map((w) => ({ title: w.title, price: w.price, link: w.link })),
+      wishes: wishes.map((w) => ({ title: w.title, price: w.price, link: w.link, details: w.details })),
     });
   });
 }

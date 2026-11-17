@@ -31,13 +31,33 @@ describe("wishes", () => {
     expect((await saveWishes(fam.org)).status).toBe(200);
     const mine = await (await me(mkReq("GET", "/api/me", undefined, fam.org.cookie))).json();
     expect(mine.wishes).toEqual([
-      { title: "Libro de recetas", price: 48000, link: "tienda.com/libro" },
-      { title: "Taza térmica", price: 42000, link: null },
-      { title: "Planta", price: 35000, link: null },
+      { title: "Libro de recetas", price: 48000, link: "tienda.com/libro", details: null },
+      { title: "Taza térmica", price: 42000, link: null, details: null },
+      { title: "Planta", price: 35000, link: null, details: null },
     ]);
     expect((await saveWishes(fam.org, [okWishes[2], okWishes[1], okWishes[0]])).status).toBe(200);
     const again = await (await me(mkReq("GET", "/api/me", undefined, fam.org.cookie))).json();
     expect(again.wishes.map((w: { title: string }) => w.title)).toEqual(["Planta", "Taza térmica", "Libro de recetas"]);
+  });
+
+  test("optional details are saved, trimmed, returned by /api/me and handed to the organizer for the draw", async () => {
+    const fam = await readyFamily(3);
+    const withDetails = [{ ...okWishes[0], details: "  Talla M, color verde  " }, okWishes[1], okWishes[2]];
+    expect((await saveWishes(fam.people[1], withDetails)).status).toBe(200);
+    const mine = await (await me(mkReq("GET", "/api/me", undefined, fam.people[1].cookie))).json();
+    expect(mine.wishes.map((w: { details: string | null }) => w.details)).toEqual(["Talla M, color verde", null, null]);
+    const list = await (await inputs(fam.org)).json();
+    const theirs = list.find((m: { id: string }) => m.id === fam.people[1].id).wishes;
+    expect(theirs[0].details).toBe("Talla M, color verde");
+    expect(theirs[1]).not.toHaveProperty("details");
+  });
+
+  test("details over 200 characters are rejected with the field name", async () => {
+    const fam = await createFamily({ size: 2 });
+    const r = await saveWishes(fam.org, [okWishes[0], { ...okWishes[1], details: "a".repeat(201) }, okWishes[2]]);
+    expect(r.status).toBe(422);
+    expect((await r.json()).field).toBe("wishes.1.details");
+    expect((await saveWishes(fam.org, [okWishes[0], { ...okWishes[1], details: "a".repeat(200) }, okWishes[2]])).status).toBe(200);
   });
 
   test("a price over the group cap is rejected with the field name", async () => {

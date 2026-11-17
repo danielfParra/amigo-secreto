@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS wishes (
   link text,
   PRIMARY KEY (user_id, position)
 );
+ALTER TABLE wishes ADD COLUMN IF NOT EXISTS details text;
 
 CREATE TABLE IF NOT EXISTS results (
   giver_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,

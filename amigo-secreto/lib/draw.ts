@@ -13,28 +13,17 @@ function randomInt(max: number): number {
   return buf[0] % max;
 }
 
-/** Restrictions for the current draw: each giver cannot be paired with any of the listed receivers (full names). */
-export const DRAW_RESTRICTIONS: { givers: string[]; cannotDraw: string[] }[] = [
-  { givers: ["Jairo Ramirez", "Luisa León"], cannotDraw: ["Laura Remirez"] },
-];
+/** A "cannot draw" pair set by the organizer, by member id. */
+export type Restriction = { giverId: string; receiverId: string };
 
-const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().replace(/\s+/g, " ").toLowerCase();
-
-/** Turns name-based restrictions into a (giverIndex, receiverIndex) predicate. Fails if a name is not in the group. */
-export function forbiddenFor(
-  members: { name: string }[],
-  restrictions: typeof DRAW_RESTRICTIONS,
-): (giver: number, receiver: number) => boolean {
-  const find = (name: string) => members.findIndex((m) => norm(m.name) === norm(name));
+/** Turns restrictions into a (giverIndex, receiverIndex) predicate. A restriction about someone not in the draw is an error, never skipped. */
+export function forbiddenFor(members: { id: string }[], restrictions: Restriction[]): (giver: number, receiver: number) => boolean {
   const blocked = new Set<string>();
   for (const r of restrictions) {
-    const all = [...r.givers, ...r.cannotDraw];
-    const found = all.filter((n) => find(n) >= 0);
-    // A rule for a different group (none of its people are here) is skipped; a partial match means a misspelled name.
-    if (found.length === 0) continue;
-    const missing = all.find((n) => find(n) < 0);
-    if (missing) throw new Error(`El sorteo tiene una restricción con "${missing}", pero esa persona no está en la lista (revisa cómo está escrito su nombre).`);
-    for (const g of r.givers.map(find)) for (const c of r.cannotDraw.map(find)) blocked.add(`${g}>${c}`);
+    const g = members.findIndex((m) => m.id === r.giverId);
+    const c = members.findIndex((m) => m.id === r.receiverId);
+    if (g < 0 || c < 0) throw new Error("Hay una restricción con alguien que ya no está en el grupo. Revísalas antes de hacer el sorteo.");
+    blocked.add(`${g}>${c}`);
   }
   return (g, r) => blocked.has(`${g}>${r}`);
 }
@@ -73,7 +62,7 @@ export type DrawOutput = {
 export async function buildDrawWithChat(
   members: DrawMember[],
   rng?: (max: number) => number,
-  restrictions: typeof DRAW_RESTRICTIONS = [],
+  restrictions: Restriction[] = [],
 ): Promise<DrawOutput> {
   const p = derangement(members.length, rng, forbiddenFor(members, restrictions));
   const pairs = await Promise.all(

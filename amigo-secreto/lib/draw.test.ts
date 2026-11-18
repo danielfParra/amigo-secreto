@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { derangement, buildDraw, buildDrawWithChat, forbiddenFor, DRAW_RESTRICTIONS, type Wish } from "./draw";
+import { derangement, buildDraw, buildDrawWithChat, forbiddenFor, type Wish } from "./draw";
 import { generateKeyPair, exportPublicKey } from "./crypto/keys";
 import { openPayload, PAD_SIZE } from "./crypto/hybrid";
 
@@ -33,33 +33,45 @@ describe("derangement", () => {
 });
 
 describe("restrictions", () => {
-  const names = ["Jairo Ramirez", "Luisa León", "Laura Remirez", "Ana", "Pedro"];
-  const members = names.map((name) => ({ name }));
+  const members = ["a", "b", "c", "d", "e"].map((id) => ({ id }));
 
-  test("Jairo and Luisa never draw Laura (accent/case-insensitive names)", () => {
-    const forbidden = forbiddenFor(members, [{ givers: ["jairo ramírez", "LUISA LEON"], cannotDraw: ["Laura Remirez"] }]);
+  test("forbidden pairs never come out of the draw", () => {
+    const forbidden = forbiddenFor(members, [
+      { giverId: "a", receiverId: "c" },
+      { giverId: "b", receiverId: "c" },
+    ]);
     for (let r = 0; r < 2000; r++) {
-      const p = derangement(names.length, undefined, forbidden);
+      const p = derangement(members.length, undefined, forbidden);
       expect(p[0]).not.toBe(2);
       expect(p[1]).not.toBe(2);
     }
   });
 
-  test("the configured restrictions parse against the real names", () => {
-    expect(() => forbiddenFor(members, DRAW_RESTRICTIONS)).not.toThrow();
-  });
-
-  test("a partly matching rule (typo) fails loudly instead of silently dropping", () => {
-    expect(() => forbiddenFor(members, [{ givers: ["Nadie"], cannotDraw: ["Laura Remirez"] }])).toThrow(/Nadie/);
-  });
-
-  test("a rule for another group (no names match) is skipped", () => {
-    const f = forbiddenFor([{ name: "X" }, { name: "Y" }], DRAW_RESTRICTIONS);
-    expect(f(0, 1)).toBe(false);
+  test("a restriction about someone outside the draw fails loudly instead of being skipped", () => {
+    expect(() => forbiddenFor(members, [{ giverId: "a", receiverId: "zzz" }])).toThrow();
   });
 
   test("impossible restrictions throw instead of looping forever", () => {
     expect(() => derangement(2, undefined, () => true)).toThrow();
+  });
+
+  test("buildDrawWithChat honours restrictions in what each giver opens", async () => {
+    const pairs = await Promise.all([0, 1, 2, 3, 4].map(() => generateKeyPair()));
+    const ms = await Promise.all(
+      pairs.map(async (kp, i) => ({ id: `id-${i}`, name: `P${i}`, publicKey: await exportPublicKey(kp.publicKey), wishes: wish(i) })),
+    );
+    const restrictions = [
+      { giverId: "id-0", receiverId: "id-2" },
+      { giverId: "id-1", receiverId: "id-2" },
+    ];
+    for (let r = 0; r < 15; r++) {
+      const out = await buildDrawWithChat(ms, undefined, restrictions);
+      for (const g of [0, 1]) {
+        const row = out.results.find((x) => x.giverId === ms[g].id)!;
+        const p = await openPayload<{ receiverName: string }>(row.sealed, pairs[g].privateKey);
+        expect(p.receiverName).not.toBe("P2");
+      }
+    }
   });
 });
 

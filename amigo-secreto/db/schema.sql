@@ -86,3 +86,11 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 CREATE INDEX IF NOT EXISTS chat_messages_thread_idx ON chat_messages(thread_hash, id);
+
+-- Organizer-set "cannot draw" pairs. Only the organizer's browser reads them, to avoid these pairs when it makes the draw.
+CREATE TABLE IF NOT EXISTS restrictions (
+  giver_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  receiver_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (giver_id, receiver_id),
+  CHECK (giver_id <> receiver_id)
+);

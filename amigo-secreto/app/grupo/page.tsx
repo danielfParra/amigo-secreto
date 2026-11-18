@@ -14,7 +14,7 @@ import { apiFetch, type ApiResult } from "@/lib/client/api";
 import { useMe, type Me } from "@/lib/client/useMe";
 import { formatCop } from "@/lib/cop";
 import { formatEventDate } from "@/lib/dates";
-import { buildDrawWithChat, DRAW_RESTRICTIONS, type DrawMember } from "@/lib/draw";
+import { buildDrawWithChat, type DrawMember, type Restriction } from "@/lib/draw";
 
 type Status = {
   members: { id: string; name: string; claimed: boolean; ready: boolean; resetPending: boolean }[];
@@ -32,6 +32,9 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
   const [error, setError] = useState<string | null>(null);
   const [confirmRedo, setConfirmRedo] = useState(false);
   const [addInput, setAddInput] = useState<string | null>(null);
+  const [restrictions, setRestrictions] = useState<Restriction[]>([]);
+  const [rGiver, setRGiver] = useState("");
+  const [rReceiver, setRReceiver] = useState("");
 
   const apply = useCallback((r: ApiResult<Status>) => {
     if (r.ok) setStatus(r.data);
@@ -54,6 +57,13 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
   }, [apply]);
 
   const isOrganizer = me.user.isOrganizer;
+  const loadRestrictions = useCallback(async () => {
+    const r = await apiFetch<Restriction[]>("/api/restrictions");
+    if (r.ok) setRestrictions(r.data);
+  }, []);
+  useEffect(() => {
+    if (isOrganizer) void loadRestrictions();
+  }, [isOrganizer, loadRestrictions]);
   const myRow = status?.members.find((m) => m.id === me.user.id);
   const date = formatEventDate(me.group.eventDate);
 
@@ -88,8 +98,11 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
       const inputs = await apiFetch<DrawMember[]>("/api/draw/inputs");
       if (!inputs.ok) return inputs;
       // The pairing is made and encrypted here, in this browser; the server only stores the sealed results.
+      // Fail closed: if the restrictions cannot be read, no draw is made without them.
+      const rs = await apiFetch<Restriction[]>("/api/restrictions");
+      if (!rs.ok) return rs;
       try {
-        const { results, inbox, threads } = await buildDrawWithChat(inputs.data, undefined, DRAW_RESTRICTIONS);
+        const { results, inbox, threads } = await buildDrawWithChat(inputs.data, undefined, rs.data);
         return apiFetch("/api/draw", "POST", { results, inbox, threads });
       } catch (e) {
         return { ok: false as const, status: 0, error: e instanceof Error ? e.message : "No se pudo hacer el sorteo" };
@@ -184,6 +197,52 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
             </div>
           )}
         </div>
+      )}
+
+      {isOrganizer && !status?.drawDone && status && status.members.length >= 3 && (
+        <details className="card stack" style={{ gap: 8, padding: 12 }}>
+          <summary style={{ fontWeight: 700, cursor: "pointer" }}>
+            Restricciones del sorteo{restrictions.length ? ` (${restrictions.length})` : ""}
+          </summary>
+          <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+            <span style={{ fontSize: 14, color: "var(--muted)" }}>Solo tú las ves. Quien aparece primero no le regalará a quien aparece después.</span>
+            {restrictions.map((r) => {
+              const g = status.members.find((m) => m.id === r.giverId)?.name ?? "?";
+              const c = status.members.find((m) => m.id === r.receiverId)?.name ?? "?";
+              return (
+                <div key={`${r.giverId}>${r.receiverId}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span>{g} no le regala a {c}</span>
+                  <button type="button" className="btn btn-link" disabled={busy} aria-label={`Quitar restricción: ${g} no le regala a ${c}`}
+                    onClick={() => run(async () => { const x = await apiFetch("/api/restrictions", "DELETE", r); await loadRestrictions(); return x; })}>
+                    Quitar
+                  </button>
+                </div>
+              );
+            })}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <label className="sr-only" htmlFor="r-giver">Quién regala</label>
+              <select id="r-giver" className="input" style={{ minHeight: 44, flex: 1, minWidth: 120 }} value={rGiver} onChange={(e) => setRGiver(e.target.value)}>
+                <option value="">Quien regala…</option>
+                {status.members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+              <span aria-hidden>→</span>
+              <label className="sr-only" htmlFor="r-receiver">A quién no puede regalarle</label>
+              <select id="r-receiver" className="input" style={{ minHeight: 44, flex: 1, minWidth: 120 }} value={rReceiver} onChange={(e) => setRReceiver(e.target.value)}>
+                <option value="">No puede regalarle a…</option>
+                {status.members.filter((m) => m.id !== rGiver).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+              <button type="button" className="btn btn-ghost" style={{ width: "auto", padding: "0 16px" }} disabled={busy || !rGiver || !rReceiver}
+                onClick={() => run(async () => {
+                  const x = await apiFetch("/api/restrictions", "POST", { giverId: rGiver, receiverId: rReceiver });
+                  if (x.ok) { setRGiver(""); setRReceiver(""); }
+                  await loadRestrictions();
+                  return x;
+                })}>
+                Agregar
+              </button>
+            </div>
+          </div>
+        </details>
       )}
 
       {note && <Bubble tone="green" style={{ maxWidth: "none" }}>{note}</Bubble>}

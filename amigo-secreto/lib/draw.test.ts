@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { derangement, buildDraw, buildDrawWithChat, type Wish } from "./draw";
+import { derangement, buildDraw, buildDrawWithChat, forbiddenFor, DRAW_RESTRICTIONS, type Wish } from "./draw";
 import { generateKeyPair, exportPublicKey } from "./crypto/keys";
 import { openPayload, PAD_SIZE } from "./crypto/hybrid";
 
@@ -29,6 +29,37 @@ describe("derangement", () => {
   test("n<2 throws", () => {
     expect(() => derangement(1)).toThrow();
     expect(() => derangement(0)).toThrow();
+  });
+});
+
+describe("restrictions", () => {
+  const names = ["Jairo Ramirez", "Luisa León", "Laura Ramirez", "Ana", "Pedro"];
+  const members = names.map((name) => ({ name }));
+
+  test("Jairo and Luisa never draw Laura (accent/case-insensitive names)", () => {
+    const forbidden = forbiddenFor(members, [{ givers: ["jairo ramírez", "LUISA LEON"], cannotDraw: ["Laura Ramirez"] }]);
+    for (let r = 0; r < 2000; r++) {
+      const p = derangement(names.length, undefined, forbidden);
+      expect(p[0]).not.toBe(2);
+      expect(p[1]).not.toBe(2);
+    }
+  });
+
+  test("the configured restrictions parse against the real names", () => {
+    expect(() => forbiddenFor(members, DRAW_RESTRICTIONS)).not.toThrow();
+  });
+
+  test("a partly matching rule (typo) fails loudly instead of silently dropping", () => {
+    expect(() => forbiddenFor(members, [{ givers: ["Nadie"], cannotDraw: ["Laura Ramirez"] }])).toThrow(/Nadie/);
+  });
+
+  test("a rule for another group (no names match) is skipped", () => {
+    const f = forbiddenFor([{ name: "X" }, { name: "Y" }], DRAW_RESTRICTIONS);
+    expect(f(0, 1)).toBe(false);
+  });
+
+  test("impossible restrictions throw instead of looping forever", () => {
+    expect(() => derangement(2, undefined, () => true)).toThrow();
   });
 });
 

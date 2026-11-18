@@ -13,17 +13,51 @@ function randomInt(max: number): number {
   return buf[0] % max;
 }
 
-/** Random permutation p of 0..n-1 with p[i] !== i for every i (rejection sampling over Fisher–Yates). */
-export function derangement(n: number, rng: (max: number) => number = randomInt): number[] {
+/** Restrictions for the current draw: each giver cannot be paired with any of the listed receivers (full names). */
+export const DRAW_RESTRICTIONS: { givers: string[]; cannotDraw: string[] }[] = [
+  { givers: ["Jairo Ramirez", "Luisa León"], cannotDraw: ["Laura Ramirez"] },
+];
+
+const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().replace(/\s+/g, " ").toLowerCase();
+
+/** Turns name-based restrictions into a (giverIndex, receiverIndex) predicate. Fails if a name is not in the group. */
+export function forbiddenFor(
+  members: { name: string }[],
+  restrictions: typeof DRAW_RESTRICTIONS,
+): (giver: number, receiver: number) => boolean {
+  const find = (name: string) => members.findIndex((m) => norm(m.name) === norm(name));
+  const blocked = new Set<string>();
+  for (const r of restrictions) {
+    const all = [...r.givers, ...r.cannotDraw];
+    const found = all.filter((n) => find(n) >= 0);
+    // A rule for a different group (none of its people are here) is skipped; a partial match means a misspelled name.
+    if (found.length === 0) continue;
+    const missing = all.find((n) => find(n) < 0);
+    if (missing) throw new Error(`El sorteo tiene una restricción con "${missing}", pero esa persona no está en la lista (revisa cómo está escrito su nombre).`);
+    for (const g of r.givers.map(find)) for (const c of r.cannotDraw.map(find)) blocked.add(`${g}>${c}`);
+  }
+  return (g, r) => blocked.has(`${g}>${r}`);
+}
+
+/**
+ * Random permutation p of 0..n-1 with p[i] !== i for every i and no p[i] for which forbidden(i, p[i]) holds
+ * (rejection sampling over Fisher–Yates).
+ */
+export function derangement(
+  n: number,
+  rng: (max: number) => number = randomInt,
+  forbidden?: (giver: number, receiver: number) => boolean,
+): number[] {
   if (n < 2) throw new Error("A draw needs at least 2 people");
-  for (;;) {
+  for (let attempt = 0; attempt < 100_000; attempt++) {
     const p = Array.from({ length: n }, (_, i) => i);
     for (let i = n - 1; i > 0; i--) {
       const j = rng(i + 1);
       [p[i], p[j]] = [p[j], p[i]];
     }
-    if (p.every((v, i) => v !== i)) return p;
+    if (p.every((v, i) => v !== i && !forbidden?.(i, v))) return p;
   }
+  throw new Error("No hay forma de hacer el sorteo con esas restricciones");
 }
 
 export type DrawOutput = {
@@ -36,8 +70,12 @@ export type DrawOutput = {
 };
 
 /** Makes the pairing and seals everything for it, all in the caller's browser. */
-export async function buildDrawWithChat(members: DrawMember[], rng?: (max: number) => number): Promise<DrawOutput> {
-  const p = derangement(members.length, rng);
+export async function buildDrawWithChat(
+  members: DrawMember[],
+  rng?: (max: number) => number,
+  restrictions: typeof DRAW_RESTRICTIONS = [],
+): Promise<DrawOutput> {
+  const p = derangement(members.length, rng, forbiddenFor(members, restrictions));
   const pairs = await Promise.all(
     members.map(async (giver, i) => {
       const receiver = members[p[i]];

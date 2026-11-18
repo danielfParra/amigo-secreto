@@ -14,7 +14,7 @@ import { apiFetch, type ApiResult } from "@/lib/client/api";
 import { useMe, type Me } from "@/lib/client/useMe";
 import { formatCop } from "@/lib/cop";
 import { formatEventDate } from "@/lib/dates";
-import { buildDrawWithChat, type DrawMember } from "@/lib/draw";
+import { buildDrawWithChat, DRAW_RESTRICTIONS, type DrawMember } from "@/lib/draw";
 
 type Status = {
   members: { id: string; name: string; claimed: boolean; ready: boolean; resetPending: boolean }[];
@@ -88,8 +88,12 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
       const inputs = await apiFetch<DrawMember[]>("/api/draw/inputs");
       if (!inputs.ok) return inputs;
       // The pairing is made and encrypted here, in this browser; the server only stores the sealed results.
-      const { results, inbox, threads } = await buildDrawWithChat(inputs.data);
-      return apiFetch("/api/draw", "POST", { results, inbox, threads });
+      try {
+        const { results, inbox, threads } = await buildDrawWithChat(inputs.data, undefined, DRAW_RESTRICTIONS);
+        return apiFetch("/api/draw", "POST", { results, inbox, threads });
+      } catch (e) {
+        return { ok: false as const, status: 0, error: e instanceof Error ? e.message : "No se pudo hacer el sorteo" };
+      }
     }, "¡Sorteo hecho! Cada quien ya puede ver a quién le regala.");
   }
 

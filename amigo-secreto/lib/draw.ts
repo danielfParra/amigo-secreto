@@ -15,7 +15,7 @@ function randomInt(max: number): number {
 
 /** Restrictions for the current draw: each giver cannot be paired with any of the listed receivers (full names). */
 export const DRAW_RESTRICTIONS: { givers: string[]; cannotDraw: string[] }[] = [
-  { givers: ["Jairo Ramirez", "Luisa León"], cannotDraw: ["Laura Ramirez"] },
+  { givers: ["Jairo Ramirez", "Luisa León"], cannotDraw: ["Laura Remirez"] },
 ];
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().replace(/\s+/g, " ").toLowerCase();

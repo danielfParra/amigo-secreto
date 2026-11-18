@@ -33,11 +33,11 @@ describe("derangement", () => {
 });
 
 describe("restrictions", () => {
-  const names = ["Jairo Ramirez", "Luisa León", "Laura Ramirez", "Ana", "Pedro"];
+  const names = ["Jairo Ramirez", "Luisa León", "Laura Remirez", "Ana", "Pedro"];
   const members = names.map((name) => ({ name }));
 
   test("Jairo and Luisa never draw Laura (accent/case-insensitive names)", () => {
-    const forbidden = forbiddenFor(members, [{ givers: ["jairo ramírez", "LUISA LEON"], cannotDraw: ["Laura Ramirez"] }]);
+    const forbidden = forbiddenFor(members, [{ givers: ["jairo ramírez", "LUISA LEON"], cannotDraw: ["Laura Remirez"] }]);
     for (let r = 0; r < 2000; r++) {
       const p = derangement(names.length, undefined, forbidden);
       expect(p[0]).not.toBe(2);
@@ -50,7 +50,7 @@ describe("restrictions", () => {
   });
 
   test("a partly matching rule (typo) fails loudly instead of silently dropping", () => {
-    expect(() => forbiddenFor(members, [{ givers: ["Nadie"], cannotDraw: ["Laura Ramirez"] }])).toThrow(/Nadie/);
+    expect(() => forbiddenFor(members, [{ givers: ["Nadie"], cannotDraw: ["Laura Remirez"] }])).toThrow(/Nadie/);
   });
 
   test("a rule for another group (no names match) is skipped", () => {

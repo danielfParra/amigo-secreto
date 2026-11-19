@@ -7,7 +7,8 @@ import Clouds from "@/components/Clouds";
 import Field from "@/components/Field";
 import PinFields, { type PinErrors, type PinValues } from "@/components/PinFields";
 import { apiFetch } from "@/lib/client/api";
-import { createCredentials } from "@/lib/client/session";
+import { saveDeviceWrapKey } from "@/lib/client/deviceKey";
+import { createCredentialsWithKey } from "@/lib/client/session";
 import { MIN_PIN_LENGTH } from "@/lib/crypto/kdf";
 import { parseRoster, sortNames } from "@/lib/names";
 import { parseCop } from "@/lib/cop";
@@ -60,16 +61,18 @@ export default function Crear() {
 
     setBusy(true);
     try {
-      const creds = await createCredentials(pins.pin);
+      const { credentials, wrapKey } = await createCredentialsWithKey(pins.pin);
       const r = await apiFetch("/api/groups", "POST", {
         groupName: groupName.trim(),
         eventDate: eventDate || undefined,
         priceCap: cap,
         names: roster.names,
         me: myName,
-        ...creds,
+        ...credentials,
       });
       if (r.ok) {
+        const who = await apiFetch<{ user: { id: string } }>("/api/me");
+        if (who.ok) await saveDeviceWrapKey(who.data.user.id, wrapKey);
         router.push("/grupo");
         return;
       }

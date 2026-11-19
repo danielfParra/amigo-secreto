@@ -7,8 +7,11 @@ import { useRouter } from "next/navigation";
 import Bubble from "@/components/Bubble";
 import Button from "@/components/Button";
 import MemberRow from "@/components/MemberRow";
+import NotificationOptIn from "@/components/NotificationOptIn";
 import { useUnread } from "@/lib/client/useUnread";
 import { clearChatKeys } from "@/lib/client/chat";
+import { clearDeviceWrapKey } from "@/lib/client/deviceKey";
+import { clearNotifiedIds, describeUnread, updateAppBadge } from "@/lib/client/notifications";
 import ProgressBar from "@/components/ProgressBar";
 import { apiFetch, type ApiResult } from "@/lib/client/api";
 import { useMe, type Me } from "@/lib/client/useMe";
@@ -118,12 +121,16 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
   }
 
   async function logout() {
+    await clearDeviceWrapKey();
     clearChatKeys();
+    clearNotifiedIds();
+    updateAppBadge(0);
     await apiFetch("/api/logout", "POST", {});
     router.replace("/");
   }
 
-  const unread = useUnread(me.user.id, Boolean(status?.drawDone));
+  const unread = useUnread(me, Boolean(status?.drawDone));
+  const unreadTab = unread.fromCount > 0 && unread.toCount === 0 ? "from" : unread.toCount > 0 && unread.fromCount === 0 ? "to" : "from";
   const total = status?.size ?? 0;
   const waiting = status?.members.filter((m) => m.resetPending).map((m) => m.name) ?? [];
   const notJoined = status?.members.filter((m) => !m.claimed).map((m) => m.name) ?? [];
@@ -146,6 +153,24 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
           <span className="chip tone-brown">Hasta {formatCop(me.group.priceCap)}</span>
         </div>
       </div>
+
+      {status?.drawDone && unread.total > 0 && (
+        <Link href={`/chat?tab=${unreadTab}`} className="chat-alert anim-pop" aria-label={describeUnread(unread.toCount, unread.fromCount)}>
+          <span className="chat-alert-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span className="chat-alert-count">{unread.total}</span>
+          </span>
+          <div className="chat-alert-body">
+            <strong>{unread.total === 1 ? "¡Tienes 1 mensaje nuevo!" : `¡Tienes ${unread.total} mensajes nuevos!`}</strong>
+            <span>{describeUnread(unread.toCount, unread.fromCount)}</span>
+          </div>
+          <span className="chat-alert-cta">Leer</span>
+        </Link>
+      )}
+
+      {status?.drawDone && <NotificationOptIn />}
 
       {myRow && !myRow.ready && !status?.drawDone && (
         <Bubble tone="brown" style={{ maxWidth: "none" }}>
@@ -252,9 +277,13 @@ function GrupoView({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) 
         {status?.drawDone ? (
           <>
             <Button href="/privacidad">Ver mi amigo secreto</Button>
-            <Link href="/chat" className="btn btn-ghost" style={{ position: "relative" }}>
-              Chat anónimo
-              {(unread.to || unread.from) && <span className="dot" aria-label="Mensaje nuevo" style={{ top: 12, right: 18 }} />}
+            <Link href={unread.total > 0 ? `/chat?tab=${unreadTab}` : "/chat"} className={unread.total > 0 ? "btn btn-chat-unread" : "btn btn-ghost"} style={{ gap: 10 }}>
+              <span>Chat anónimo</span>
+              {unread.total > 0 && (
+                <span className="badge" aria-label={`${unread.total} mensajes nuevos`}>
+                  {unread.total}
+                </span>
+              )}
             </Link>
             {isOrganizer &&
               (confirmRedo ? (

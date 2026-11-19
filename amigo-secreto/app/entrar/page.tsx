@@ -7,7 +7,8 @@ import Button from "@/components/Button";
 import Clouds from "@/components/Clouds";
 import Field from "@/components/Field";
 import { apiFetch } from "@/lib/client/api";
-import { createCredentials, loginSecrets } from "@/lib/client/session";
+import { saveDeviceWrapKey } from "@/lib/client/deviceKey";
+import { createCredentialsWithKey, loginSecrets } from "@/lib/client/session";
 import { MIN_PIN_LENGTH } from "@/lib/crypto/kdf";
 
 type Roster = { group: { name: string } | null; members: { id: string; name: string }[] };
@@ -47,9 +48,10 @@ export default function Entrar() {
       setResetMode(true); // the organizer reset this PIN: let them pick a new one instead
       return;
     }
-    const { authSecret } = await loginSecrets(pin, salt.data.salt);
+    const { authSecret, wrapKey } = await loginSecrets(pin, salt.data.salt);
     const r = await apiFetch("/api/login", "POST", { memberId, authSecret });
     if (r.ok) {
+      await saveDeviceWrapKey(memberId, wrapKey);
       router.push("/grupo");
       return;
     }
@@ -66,9 +68,10 @@ export default function Entrar() {
       setError("Los dos PIN no coinciden");
       return;
     }
-    const creds = await createCredentials(newPin);
-    const r = await apiFetch("/api/pin-reset", "POST", { memberId, ...creds });
+    const { credentials, wrapKey } = await createCredentialsWithKey(newPin);
+    const r = await apiFetch("/api/pin-reset", "POST", { memberId, ...credentials });
     if (r.ok) {
+      await saveDeviceWrapKey(memberId, wrapKey);
       router.push("/grupo");
       return;
     }

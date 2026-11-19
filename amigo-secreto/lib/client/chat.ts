@@ -1,7 +1,7 @@
 import { openPayload } from "@/lib/crypto/hybrid";
 import { openMessage, sealMessage, type Role, type Thread } from "@/lib/crypto/chat";
 import { apiFetch } from "./api";
-import { unlockPrivateKey } from "./session";
+import { unlockAndRememberPrivateKey, unlockPrivateKeyFromDevice } from "./session";
 import type { Me } from "./useMe";
 
 /** Everything needed to chat: the thread with the person you give to, and the thread with whoever gives to you. */
@@ -9,8 +9,9 @@ export type ChatKeys = { toThread: Thread; fromThread: Thread; receiverName: str
 export type ChatLine = { id: number; role: Role; text: string; at: number };
 
 const STORE = "amigo-chat-keys";
+export const SEEN_UPDATED_EVENT = "amigo-seen-updated";
 
-/** Kept only for this browser tab (sessionStorage) and only for the person who unlocked them, so you type your PIN once per visit. */
+/** Cached for the active tab (sessionStorage) so switching pages avoids re-fetching /api/result and /api/inbox. */
 export function loadChatKeys(userId: string): ChatKeys | null {
   try {
     const raw = sessionStorage.getItem(STORE);
@@ -26,11 +27,11 @@ export function saveChatKeys(userId: string, k: ChatKeys) {
   try {
     sessionStorage.setItem(STORE, JSON.stringify({ userId, keys: k }));
   } catch {
-    /* private mode: the PIN is asked again next time */
+    /* private mode: keys will be re-derived silently from the device key when available */
   }
 }
 
-/** Forgets the keys (logout, or a chat that no longer exists after a redraw). */
+/** Forgets the cached chat keys (logout, or a chat that no longer exists after a redraw). */
 export function clearChatKeys() {
   try {
     sessionStorage.removeItem(STORE);
@@ -39,9 +40,8 @@ export function clearChatKeys() {
   }
 }
 
-/** Opens your private key with your PIN and reads both of your chat keys. Throws if the PIN is wrong. */
-export async function unlockChat(me: Me, pin: string): Promise<ChatKeys> {
-  const key = await unlockPrivateKey(pin, me, me.salt);
+/** Reads both chat threads using an already-unlocked private key. */
+export async function unlockChatWithKey(key: CryptoKey): Promise<ChatKeys> {
   const [r, i] = await Promise.all([apiFetch<{ sealed: string }>("/api/result"), apiFetch<{ sealed: string }>("/api/inbox")]);
   if (!r.ok) throw new Error(r.error);
   if (!i.ok) throw new Error(i.error);
@@ -49,6 +49,43 @@ export async function unlockChat(me: Me, pin: string): Promise<ChatKeys> {
   const received = await openPayload<{ thread?: Thread }>(i.data.sealed, key);
   if (!given.thread || !received.thread) throw new Error("Este sorteo es anterior al chat. Pide que lo repitan.");
   return { toThread: given.thread, fromThread: received.thread, receiverName: given.receiverName };
+}
+
+/** Opens your private key with your PIN (and remembers the device key) and reads both chat keys. Throws if the PIN is wrong. */
+export async function unlockChat(me: Me, pin: string): Promise<ChatKeys> {
+  const key = await unlockAndRememberPrivateKey(pin, me);
+  return unlockChatWithKey(key);
+}
+
+const inflight = new Map<string, Promise<ChatKeys | null>>();
+
+/**
+ * Returns the user's chat keys without asking for a PIN by using the cached tab keys or
+ * silently unlocking with the non-extractable device key saved at sign-in. Returns `null`
+ * only if no device key is present yet (e.g. a session from before this update).
+ */
+export async function ensureChatKeys(me: Me): Promise<ChatKeys | null> {
+  const cached = loadChatKeys(me.user.id);
+  if (cached) return cached;
+  const existing = inflight.get(me.user.id);
+  if (existing) return existing;
+
+  const job = (async () => {
+    try {
+      const key = await unlockPrivateKeyFromDevice(me);
+      if (!key) return null;
+      const chatKeys = await unlockChatWithKey(key);
+      saveChatKeys(me.user.id, chatKeys);
+      return chatKeys;
+    } catch {
+      return null;
+    } finally {
+      inflight.delete(me.user.id);
+    }
+  })();
+
+  inflight.set(me.user.id, job);
+  return job;
 }
 
 export async function fetchLines(thread: Thread, after: number): Promise<{ ok: true; lines: ChatLine[] } | { ok: false; error: string; gone: boolean }> {
@@ -87,7 +124,10 @@ export function getSeen(threadId: string): number {
 
 export function setSeen(threadId: string, id: number) {
   try {
-    if (id > getSeen(threadId)) localStorage.setItem(`amigo-seen-${threadId}`, String(id));
+    if (id > getSeen(threadId)) {
+      localStorage.setItem(`amigo-seen-${threadId}`, String(id));
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(SEEN_UPDATED_EVENT));
+    }
   } catch {
     /* ignore */
   }

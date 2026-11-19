@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Public_Sans } from "next/font/google";
+import ChatNotifier from "@/components/ChatNotifier";
 import FirstVisit from "@/components/FirstVisit";
 import RegisterSW from "@/components/RegisterSW";
 import Snow from "@/components/Snow";
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <div hidden dangerouslySetInnerHTML={{ __html: CONTRACT }} />
         {children}
+        <ChatNotifier />
         <FirstVisit />
         <Snow />
         <RegisterSW />

@@ -8,7 +8,8 @@ import Clouds from "./Clouds";
 import Field from "./Field";
 import PinFields, { type PinErrors, type PinValues } from "./PinFields";
 import { apiFetch } from "@/lib/client/api";
-import { createCredentials } from "@/lib/client/session";
+import { saveDeviceWrapKey } from "@/lib/client/deviceKey";
+import { createCredentialsWithKey } from "@/lib/client/session";
 import { MIN_PIN_LENGTH } from "@/lib/crypto/kdf";
 import { formatCop } from "@/lib/cop";
 
@@ -56,9 +57,10 @@ export default function JoinForm() {
     }
     setBusy(true);
     try {
-      const creds = await createCredentials(pins.pin);
-      const r = await apiFetch("/api/join", "POST", { inviteCode: code, memberId, ...creds });
+      const { credentials, wrapKey } = await createCredentialsWithKey(pins.pin);
+      const r = await apiFetch("/api/join", "POST", { inviteCode: code, memberId, ...credentials });
       if (r.ok) {
+        await saveDeviceWrapKey(memberId, wrapKey);
         router.push("/lista");
         return;
       }

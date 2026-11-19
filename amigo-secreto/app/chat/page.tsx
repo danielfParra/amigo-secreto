@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Clouds from "@/components/Clouds";
 import Field from "@/components/Field";
-import { clearChatKeys, fetchLines, loadChatKeys, saveChatKeys, sendLine, setSeen, unlockChat, type ChatKeys, type ChatLine } from "@/lib/client/chat";
+import NotificationOptIn from "@/components/NotificationOptIn";
+import { clearChatKeys, ensureChatKeys, fetchLines, saveChatKeys, sendLine, setSeen, unlockChat, type ChatKeys, type ChatLine } from "@/lib/client/chat";
 import { useMe, type Me } from "@/lib/client/useMe";
 import { useUnread } from "@/lib/client/useUnread";
 import { MESSAGE_MAX_CHARS, type Role, type Thread } from "@/lib/crypto/chat";
@@ -20,7 +21,7 @@ function Pane({ thread, role, hint, visible, onGone }: { thread: Thread; role: R
   const refresh = useCallback(async () => {
     const r = await fetchLines(thread, last.current);
     if (!r.ok) {
-      if (r.gone) onGone(); // the draw was redone: these keys are dead, ask for the PIN again
+      if (r.gone) onGone(); // the draw was redone: silently refresh keys
       else setError(r.error);
       return;
     }
@@ -39,7 +40,7 @@ function Pane({ thread, role, hint, visible, onGone }: { thread: Thread; role: R
     return () => clearInterval(t);
   }, [refresh, visible]);
 
-  // What is on screen counts as read, so the dot clears when the tab is open.
+  // What is on screen counts as read, so the badge clears as soon as the tab is open.
   useEffect(() => {
     if (visible && last.current) setSeen(thread.id, last.current);
     end.current?.scrollIntoView({ block: "end" });
@@ -100,25 +101,46 @@ function Unlock({ me, onOpen }: { me: Me; onOpen: (k: ChatKeys) => void }) {
   return (
     <form onSubmit={submit} noValidate className="stack" style={{ flex: 1 }}>
       <h1>Chat anónimo</h1>
-      <p className="lede">Escribe tu PIN para abrir tus chats. Solo tú y la otra persona pueden leerlos.</p>
+      <p className="lede">Escribe tu PIN una sola vez en este dispositivo para abrir tus chats. No volveremos a pedírtelo.</p>
       <Field id="pin" label="Tu PIN" type="password" autoComplete="current-password" autoFocus value={pin} onChange={(e) => setPin(e.target.value)} error={error} />
       <button type="submit" className="btn btn-primary push" disabled={busy || !pin}>{busy ? "Abriendo…" : "Abrir chats"}</button>
     </form>
   );
 }
 
-function Chats({ keys, userId, onGone }: { keys: ChatKeys; userId: string; onGone: () => void }) {
-  const [tab, setTab] = useState<"to" | "from">("to");
-  const unread = useUnread(userId);
+function initialExplicitTab(): "to" | "from" | null {
+  if (typeof window === "undefined") return null;
+  const q = new URLSearchParams(window.location.search).get("tab");
+  if (q === "from" || q === "to") return q;
+  return null;
+}
+
+function Chats({ keys, me, onGone }: { keys: ChatKeys; me: Me; onGone: () => void }) {
+  const [chosenTab, setChosenTab] = useState<"to" | "from" | null>(initialExplicitTab);
+  const unread = useUnread(me);
+  // If the user hasn't picked a tab yet and only "Quien me regala" has unread messages, show it automatically.
+  const tab: "to" | "from" = chosenTab ?? (unread.from && !unread.to ? "from" : "to");
+
   return (
     <>
       <h1>Chat anónimo</h1>
+      <NotificationOptIn />
       <div className="tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "to"} className={tab === "to" ? "tab on" : "tab"} onClick={() => setTab("to")}>
-          Mi amigo secreto{unread.to && tab !== "to" && <span className="dot" aria-label="Mensaje nuevo" />}
+        <button type="button" role="tab" aria-selected={tab === "to"} className={tab === "to" ? "tab on" : "tab"} onClick={() => setChosenTab("to")}>
+          <span>Mi amigo secreto</span>
+          {unread.toCount > 0 && tab !== "to" && (
+            <span className="badge badge-sm" aria-label={`${unread.toCount} mensajes nuevos`}>
+              {unread.toCount}
+            </span>
+          )}
         </button>
-        <button type="button" role="tab" aria-selected={tab === "from"} className={tab === "from" ? "tab on" : "tab"} onClick={() => setTab("from")}>
-          Quien me regala{unread.from && tab !== "from" && <span className="dot" aria-label="Mensaje nuevo" />}
+        <button type="button" role="tab" aria-selected={tab === "from"} className={tab === "from" ? "tab on" : "tab"} onClick={() => setChosenTab("from")}>
+          <span>Quien me regala</span>
+          {unread.fromCount > 0 && tab !== "from" && (
+            <span className="badge badge-sm" aria-label={`${unread.fromCount} mensajes nuevos`}>
+              {unread.fromCount}
+            </span>
+          )}
         </button>
       </div>
       <p className="lede" style={{ fontSize: 15 }}>
@@ -126,18 +148,34 @@ function Chats({ keys, userId, onGone }: { keys: ChatKeys; userId: string; onGon
           ? `Le escribes a ${keys.receiverName}, pero no sabrá que eres tú.`
           : "Tu amigo secreto te escribe aquí. No sabes quién es."}
       </p>
-      <Pane thread={keys.toThread} role="g" hint="Aún no hay mensajes. Pregunta por sus gustos o pide ayuda con el regalo." visible={tab === "to"} onGone={onGone} />
-      <Pane thread={keys.fromThread} role="r" hint="Aún no te han escrito. Puedes responder cuando lo hagan." visible={tab === "from"} onGone={onGone} />
+      <Pane key={keys.toThread.id} thread={keys.toThread} role="g" hint="Aún no hay mensajes. Pregunta por sus gustos o pide ayuda con el regalo." visible={tab === "to"} onGone={onGone} />
+      <Pane key={keys.fromThread.id} thread={keys.fromThread} role="r" hint="Aún no te han escrito. Puedes responder cuando lo hagan." visible={tab === "from"} onGone={onGone} />
     </>
   );
 }
 
 export default function Chat() {
   const { me, error } = useMe();
-  const [keys, setKeys] = useState<ChatKeys | null>(null);
+  const [state, setState] = useState<{ status: "opening" | "ready" | "locked"; keys: ChatKeys | null }>({ status: "opening", keys: null });
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
-    if (me) setKeys(loadChatKeys(me.user.id)); // eslint-disable-line react-hooks/set-state-in-effect -- sessionStorage only exists in the browser
-  }, [me]);
+    if (!me || !me.group.drawDone) return;
+    let cancelled = false;
+    void ensureChatKeys(me).then((k) => {
+      if (cancelled) return;
+      setState(k ? { status: "ready", keys: k } : { status: "locked", keys: null });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [me, attempt]);
+
+  const handleGone = useCallback(() => {
+    clearChatKeys();
+    setState({ status: "opening", keys: null });
+    setAttempt((n) => n + 1);
+  }, []);
 
   return (
     <main className="screen" style={{ gap: 14 }}>
@@ -154,10 +192,12 @@ export default function Chat() {
           <h1>Aún no hay chat</h1>
           <p className="lede">El chat se abre cuando quien organiza hace el sorteo.</p>
         </div>
-      ) : keys ? (
-        <Chats keys={keys} userId={me.user.id} onGone={() => { clearChatKeys(); setKeys(null); }} />
+      ) : state.keys ? (
+        <Chats keys={state.keys} me={me} onGone={handleGone} />
+      ) : state.status === "opening" ? (
+        <p className="lede">Abriendo tus chats…</p>
       ) : (
-        <Unlock me={me} onOpen={(k) => { saveChatKeys(me.user.id, k); setKeys(k); }} />
+        <Unlock me={me} onOpen={(k) => { saveChatKeys(me.user.id, k); setState({ status: "ready", keys: k }); }} />
       )}
     </main>
   );

@@ -1,5 +1,13 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
-import { createCredentials, loginSecrets, unlockPrivateKey } from "./session";
+import {
+  createCredentials,
+  createCredentialsWithKey,
+  loginSecrets,
+  unlockAndRememberPrivateKey,
+  unlockPrivateKey,
+  unlockPrivateKeyFromDevice,
+} from "./session";
+import { clearDeviceWrapKey, saveDeviceWrapKey } from "./deviceKey";
 import { apiFetch } from "./api";
 import { importPublicKey } from "@/lib/crypto/keys";
 import { sealPayload, openPayload } from "@/lib/crypto/hybrid";
@@ -41,6 +49,52 @@ describe("createCredentials / unlockPrivateKey", () => {
 
   test("rejects a PIN shorter than 4 characters", async () => {
     await expect(createCredentials("12", IT)).rejects.toThrow();
+  });
+
+  test("device wrapKey unlocks the private key without asking for the PIN again, and clears on logout", async () => {
+    const { credentials, wrapKey } = await createCredentialsWithKey("1234", IT);
+    await saveDeviceWrapKey("user-1", wrapKey);
+
+    const priv = await unlockPrivateKeyFromDevice({
+      user: { id: "user-1" },
+      wrappedPrivateKey: credentials.wrappedPrivateKey,
+      wrapIv: credentials.wrapIv,
+    });
+    expect(priv).not.toBeNull();
+    const sealed = await sealPayload({ hola: "sin-pin" }, await importPublicKey(credentials.publicKey));
+    expect(await openPayload(sealed, priv!)).toEqual({ hola: "sin-pin" });
+
+    // A different user never gets user-1's key.
+    expect(
+      await unlockPrivateKeyFromDevice({
+        user: { id: "user-2" },
+        wrappedPrivateKey: credentials.wrappedPrivateKey,
+        wrapIv: credentials.wrapIv,
+      }),
+    ).toBeNull();
+
+    // After logout, the device key is gone.
+    await clearDeviceWrapKey();
+    expect(
+      await unlockPrivateKeyFromDevice({
+        user: { id: "user-1" },
+        wrappedPrivateKey: credentials.wrappedPrivateKey,
+        wrapIv: credentials.wrapIv,
+      }),
+    ).toBeNull();
+  });
+
+  test("unlockAndRememberPrivateKey unlocks once with PIN and saves the key for future PIN-free unlocks", async () => {
+    await clearDeviceWrapKey();
+    const c = await createCredentials("4321", IT);
+    const me = { user: { id: "user-3" }, wrappedPrivateKey: c.wrappedPrivateKey, wrapIv: c.wrapIv, salt: c.salt };
+
+    await unlockAndRememberPrivateKey("4321", me, IT);
+    const priv = await unlockPrivateKeyFromDevice(me);
+    expect(priv).not.toBeNull();
+    const sealed = await sealPayload({ ok: true }, await importPublicKey(c.publicKey));
+    expect(await openPayload(sealed, priv!)).toEqual({ ok: true });
+    await clearDeviceWrapKey();
   });
 });
 

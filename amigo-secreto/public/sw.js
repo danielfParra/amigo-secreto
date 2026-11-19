@@ -1,5 +1,5 @@
 // Minimal service worker: cache-first for static assets, network-only for the API and everything dynamic.
-const CACHE = "amigo-secreto-v4";
+const CACHE = "amigo-secreto-v5";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/icons/icon-192.png"])).then(() => self.skipWaiting()));
@@ -30,5 +30,22 @@ self.addEventListener("fetch", (event) => {
           return res;
         }),
     ),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/chat";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.focus();
+          if ("navigate" in client) client.navigate(targetUrl);
+          return;
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    }),
   );
 });

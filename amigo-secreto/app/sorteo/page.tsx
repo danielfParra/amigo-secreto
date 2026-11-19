@@ -7,7 +7,7 @@ import Clouds from "@/components/Clouds";
 import Field from "@/components/Field";
 import Pack from "@/components/Pack";
 import { apiFetch } from "@/lib/client/api";
-import { unlockPrivateKey } from "@/lib/client/session";
+import { unlockAndRememberPrivateKey, unlockPrivateKeyFromDevice } from "@/lib/client/session";
 import { useMe, type Me } from "@/lib/client/useMe";
 import { openPayload } from "@/lib/crypto/hybrid";
 import { formatCop } from "@/lib/cop";
@@ -24,6 +24,34 @@ function Reveal({ me }: { me: Me }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  async function openWithKey(key: CryptoKey) {
+    const r = await apiFetch<{ sealed: string }>("/api/result");
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    setResult(await openPayload<Result>(r.data.sealed, key)); // decrypted here, in this browser only
+    setAsking(false);
+    setPin("");
+  }
+
+  async function revealDirect() {
+    setError(null);
+    setBusy(true);
+    try {
+      const key = await unlockPrivateKeyFromDevice(me);
+      if (!key) {
+        setAsking(true);
+        setBusy(false);
+        return;
+      }
+      await openWithKey(key);
+    } catch {
+      setError("No pudimos abrir tu resultado. Si quien organiza repitió el sorteo, vuelve a entrar e intenta de nuevo.");
+    }
+    setBusy(false);
+  }
+
   async function reveal(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -31,21 +59,13 @@ function Reveal({ me }: { me: Me }) {
     try {
       let key: CryptoKey;
       try {
-        key = await unlockPrivateKey(pin, me, me.salt);
+        key = await unlockAndRememberPrivateKey(pin, me);
       } catch {
         setError("Ese PIN no es el tuyo. Intenta de nuevo.");
         setBusy(false);
         return;
       }
-      const r = await apiFetch<{ sealed: string }>("/api/result");
-      if (!r.ok) {
-        setError(r.error);
-        setBusy(false);
-        return;
-      }
-      setResult(await openPayload<Result>(r.data.sealed, key)); // decrypted here, in this browser only
-      setAsking(false);
-      setPin("");
+      await openWithKey(key);
     } catch {
       setError("No pudimos abrir tu resultado. Si quien organiza repitió el sorteo, vuelve a entrar e intenta de nuevo.");
     }
@@ -121,7 +141,7 @@ function Reveal({ me }: { me: Me }) {
       {asking ? (
         <button type="submit" className="btn btn-primary" disabled={busy || !pin}>{busy ? "Abriendo…" : "Revelar"}</button>
       ) : (
-        <button type="button" className="btn btn-primary" onClick={() => setAsking(true)}>Revelar</button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={revealDirect}>{busy ? "Abriendo…" : "Revelar"}</button>
       )}
     </form>
   );
